@@ -1,6 +1,6 @@
 # Simple Status Page — Implementation Plan (v1)
 
-Status: approved · Date: 2026-05-26
+Status: approved · Last revised: 2026-05-26
 
 A fast, lightweight, gorgeous status page for self-hosted servers and services.
 Public read view, authenticated settings, modular providers, resilient parsers.
@@ -10,20 +10,33 @@ Public read view, authenticated settings, modular providers, resilient parsers.
 ## 1. Stack and deployment
 
 - **Backend:** PHP 8.2+, no framework, no Composer. Manual PSR-4 autoloader (namespace prefix `App\`).
-- **Frontend:** Vanilla JS + modern CSS. No framework, no build step, no `node_modules`.
-- **Storage:** Single JSON file `config/settings.json`. Atomic writes (`LOCK_EX` + temp + rename).
-- **Server cache:** File-based TTL cache at `cache/state.json` with stale-while-error fallback.
+- **Frontend:** Preact + HTM, served as static ES modules via an import map. No bundler at runtime. No JSX (HTM gives JSX-like tagged template literals — no compile step). Total runtime: ~13 KB gzipped.
+- **Vendoring:** dependencies declared in `package.json`. `npm run vendor` (`bin/vendor.mjs`) copies pinned `.module.js` files out of `node_modules/` into `public/assets/vendor/{name}-{version}.module.js` and copies LICENSE files to `public/assets/vendor/LICENSES/`. Vendor files are **committed** to the repo — deploys remain file-copy, no Node required on the server.
+- **Storage:** `config/settings.json`. Atomic writes (`LOCK_EX` + temp + rename).
+- **Server cache:** `cache/state.json` with stale-while-error fallback.
 - **Sessions:** PHP sessions, save path overridden to `cache/sessions/`.
-- **Reverse proxy:** Caddy + PHP-FPM. A reference `Caddyfile.example` ships in the repo.
+- **Reverse proxy:** Caddy + PHP-FPM. Reference `Caddyfile.example` ships in the repo.
 - **PHP requirements:** opcache enabled (documented), cURL, json, openssl extensions.
 - **Strict types:** `declare(strict_types=1);` in every PHP file. PSR-12 style.
+- **Browser baseline:** import maps required → Chrome/Edge 89+, Safari 16.4+, Firefox 108+.
 
 ### File layout
 
 ```
 public/                       Caddy webroot
   index.php                   front controller + SPA shell
-  assets/{app.css, app.js}
+  assets/
+    app.css                   all styles (no inline)
+    app.js                    entry; uses preact + htm via import map
+    components/{topbar,hero,card,elements,sparkline,settings,login,onboard,about}.js
+    store.js                  tiny reactive store + localStorage prefs
+    icons.js                  inline SVG paths
+    vendor/
+      preact-10.x.x.module.js
+      preact-hooks-10.x.x.module.js
+      htm-3.x.x.module.js
+      LICENSES/{preact,htm}.LICENSE
+      README.md               pinned versions + integrity hashes + update flow
   api/{state, config, settings, discover, auth, login, logout, onboard, health}.php
 src/                          outside webroot, PSR-4 (App\)
   Providers/{Provider, Registry, Beszel, UptimeRobot}.php
@@ -42,7 +55,10 @@ cache/
 tests/
   run.php                     no-Composer test runner
   fixtures/{beszel,uptimerobot}/*.json
+bin/
+  vendor.mjs                  copies node_modules → public/assets/vendor/
 AGENTS/PLAN.md
+package.json                  Preact + HTM deps; "vendor" script
 Caddyfile.example
 README.md
 LICENSE
@@ -53,9 +69,9 @@ LICENSE
 ## 2. Architectural pillars
 
 ### 2.1 Normalize on the server
-Each provider's data is converted server-side into one normalized item shape. The
-browser renders one kind of card regardless of source. Adding a provider never
-touches frontend code.
+Each provider's data is converted server-side into one normalized item shape.
+The browser renders one kind of card regardless of source. Adding a provider
+never touches frontend code.
 
 ### 2.2 Modular providers (forward-compatible from day one)
 A small `Provider` interface. Each provider is one file in `src/Providers/`. A
@@ -67,10 +83,14 @@ A small `Provider` interface. Each provider is one file in `src/Providers/`. A
 - **State** (provider/operator concept): `active` | `paused` | `maintenance` | `unknown`.
   Always supplied by the provider.
 
-Display rule: if `state ≠ active`, show the state pill (muted). Otherwise show
-severity (green/amber/red). A paused-but-last-severity-was-down monitor shows as
-paused, not red. This separation is what lets v2 add user rules without
-touching the provider contract.
+**Display rule:** if `state ≠ active`, show the state pill and a muted card
+treatment — independent of severity. Specifically:
+- `paused` → silver pill, dim card, no red even if last severity was down.
+- `maintenance` → silver pill with wrench icon, dim card.
+- `unknown` → grey pill, faded card. **Never red.** An item awaiting first check
+  is not down; it has no signal.
+
+Otherwise (state = active) show severity (green / amber / red).
 
 ### 2.4 Resilient parsing (4-layer degradation)
 Failures degrade gracefully, never cascade. See §11.
@@ -121,8 +141,7 @@ v1 thresholds and v2 rules will reference elements by key. Document this in
 ### IDs
 Composite, opaque, provider-owned (`sys_abc::disk::/var`). The framework never
 parses them. `fetch()` accepts a mixed list of parent and child ids; the
-provider groups them internally and batches the underlying API calls (one
-`system_stats` fetch covers all sub-items for that host).
+provider groups them internally and batches the underlying API calls.
 
 ---
 
@@ -135,45 +154,35 @@ provider groups them internally and batches the underlying API calls (one
   "itemId": "sys_abc::disk::/var",
   "displayName": "/var disk",
   "state": "active" | "paused" | "maintenance" | "unknown",
-  "severity": "ok" | "degraded" | "down",
-  "statusText": "Operational",         // human-readable, optional
+  "severity": "ok" | "degraded" | "down",   // computed by server, never raw from provider
+  "statusText": "Operational",
   "lastSeenAt": 1764100000,
-  "parentId": null,                    // present in discovery only; absent at render in v1
+  "parentId": null,                          // present in discovery only; absent at render in v1
   "elements": [ /* see below */ ],
-  "error": null                        // string when this item failed to fetch/parse
+  "error": null
 }
 ```
 
-`state`, `severity`, `statusText` are computed by the server's evaluator (§7),
-not by the provider. The provider returns the raw state and the elements (with
-their default thresholds); the evaluator computes severity and applies user
-overrides.
+`state`, `severity`, `statusText` are computed by the server's evaluator (§7).
+The provider returns the raw state and the elements (with their default
+thresholds); the evaluator computes severity.
 
 ### Element types (v1)
 
-Every element is independently renderable. Adding an element type is a frontend
-change; adding a provider is not.
+| `type`    | Shape                                                                                                                                            | Use cases                          |
+|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
+| `gauge`   | `{key, label, value, unit, max?, thresholds?: {warn?, crit?}, severity?: "warn"\|"crit"\|null, history?: {intervalSec, values[]}}`               | CPU %, RAM %, disk %               |
+| `counter` | `{key, label, value, unit, thresholds?, severity?, history?}` — no `max`                                                                         | response_time ms, requests/s, p99  |
+| `uptime`  | `{windows: [{label, ratio}]}` — arbitrary number of windows                                                                                      | 24h / 7d / 30d / 90d               |
+| `boolean` | `{key, label, value, trueLabel?, falseLabel?}`                                                                                                   | "Passing", "Synced", "SSL valid"   |
+| `text`    | `{rows: [{label, value, mono?: bool}]}`                                                                                                          | hostname, OS, commit SHA           |
+| `events`  | `{items: [{t, title, severity: "info"\|"warn"\|"error", durationSec?, href?}]}`                                                                  | downtime log, deploys, incidents   |
+| `link`    | `{label, href, external?: bool}`                                                                                                                 | "Open in Grafana"                  |
 
-| `type`     | Shape                                                                                                                                                          | Use cases                          |
-|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| `gauge`    | `{key, label, value, unit, max?, thresholds?: {warn?, crit?}, severity?: "warn"\|"crit"\|null, history?: {intervalSec, values[]}}`                              | CPU %, RAM %, disk %               |
-| `counter`  | `{key, label, value, unit, thresholds?, severity?, history?}` — no `max`, no gauge semantics                                                                   | response_time ms, requests/s, p99  |
-| `uptime`   | `{windows: [{label, ratio}]}` — arbitrary number of windows                                                                                                    | 24h/7d/30d/90d                     |
-| `boolean`  | `{key, label, value, trueLabel?, falseLabel?}`                                                                                                                 | "Passing", "Synced", "SSL valid"   |
-| `text`     | `{rows: [{label, value, mono?: bool}]}`                                                                                                                        | hostname, OS, commit SHA           |
-| `events`   | `{items: [{t, title, severity: "info"\|"warn"\|"error", durationSec?, href?}]}` — irregular timeseries                                                         | downtime log, deploys, incidents   |
-| `link`     | `{label, href, external?: bool}`                                                                                                                               | "Open in Grafana"                  |
-
-Rules:
-- `history` uses `{intervalSec, values: []}` — evenly-spaced numeric series.
-  Irregular series go in `events`. This wire format is compact and fits sparkline
-  rendering directly.
-- `state` is optional in the provider's raw output. Providers without a
-  meaningful state emit `"active"`; the card relies entirely on element
-  thresholds + computed severity. Providers with paused/maintenance concepts
-  emit those literals.
-- Thresholds are **advisory at the element layer** (paint that one number
-  warn/crit) and **load-bearing at the card layer** via the evaluator.
+Note the two severity vocabularies are deliberate and distinct:
+- **Item-level** `severity`: `ok | degraded | down` (computed card status).
+- **Element-level** `severity`: `warn | crit | null` (one element exceeding a
+  threshold contributes `warn → degraded`, `crit → down` to the item).
 
 ---
 
@@ -191,7 +200,18 @@ Rules:
       "clientCert": { "enabled": false, "headerName": "X-Client-Cert-Subject", "allowedSubjects": [] }
     }
   },
-  "ui": { "refreshIntervalSec": 30, "theme": "auto" },
+  "ui": {
+    "siteTitle":          null,            // null → PHP_URL_HOST of the request
+    "refreshIntervalSec": 30,              // admin-only; server cache TTL aligns
+    "theme":              "auto",          // default; viewer may override (localStorage)
+    "accent":             "mint",          // admin-only — site-wide brand
+    "cardstyle":          "paper",         // admin-only — flat | paper | elev
+    "mark":               "stripe",        // admin-only — stripe | dot
+    "density":            "regular",       // default; viewer may override
+    "mode":               "detailed",      // default; viewer may override — simple | detailed
+    "sparklines":         true,            // default; viewer may override
+    "summaryBar":         true             // default; viewer may override
+  },
   "instances": [
     {
       "id": "uuid",
@@ -207,38 +227,25 @@ Rules:
     }
   ],
   "displayOrder": [
-    { "instanceId": "uuid",        "itemId": "sys_abc" },
-    { "instanceId": "uuid",        "itemId": "sys_abc::disk::/var" },
-    { "instanceId": "other-uuid",  "itemId": "monitor_42" }
+    { "instanceId": "uuid",       "itemId": "sys_abc" },
+    { "instanceId": "uuid",       "itemId": "sys_abc::disk::/var" },
+    { "instanceId": "other-uuid", "itemId": "monitor_42" }
   ],
   "itemConfig": {
     "<instanceId>:<itemId>": {
       "displayName": "/var disk",
       "thresholdOverrides": {
-        "cpu":  { "warn": 75, "crit": 90 },
-        "disk": { "warn": 90 }
+        // populated by v2 UI; v1 leaves empty and uses provider defaults from §7.1
       }
-      // v2 slots in here without migration:
-      //   "customRules":    [ {element, op, value, severity} ],
-      //   "evaluationMode": "thresholds" | "rules" | "both",
-      //   "mutePeriods":    [ ... ]
+      // v2 also adds: customRules, evaluationMode, mutePeriods
     }
   }
 }
 ```
 
-Why `itemConfig` is a separate top-level table rather than embedded in
-`instances[].items[]`:
-- Survives re-discovery — items come and go, user config stays bound to the
-  composite id.
-- Same shape for parent items and sub-items.
-- v2 additions land in one place.
-
-Why `displayOrder` is separate from `instances[].items[]`:
-- `items[]` is the catalog (what exists + visibility).
-- `displayOrder[]` is the user's chosen flat order of visible items across all
-  instances and providers — allows interleaving (host from A, disk from B, monitor
-  from C).
+`itemConfig` is a separate top-level table so it survives re-discovery and
+shares one shape for parent and sub-items. `displayOrder` is flat and
+cross-instance so users can interleave items from different providers.
 
 ---
 
@@ -246,40 +253,57 @@ Why `displayOrder` is separate from `instances[].items[]`:
 
 ### 6.1 Public vs protected endpoints
 **Public:** `/`, `/api/state`, `/api/config`, `/api/auth`, `/health`.
-**Protected:** `/api/settings` (GET/POST), `/api/discover`, `/api/logout`, plus
-the SPA overlays for `/options` and `/about` (UI renders but content is blocked
-until authenticated).
-**First-run only:** `/api/onboard` (closes as soon as the admin password is set).
+**Protected:** `/api/settings` (GET/POST), `/api/discover`, `/api/logout`.
+**First-run only:** `/api/onboard`.
+
+The SPA itself is always served; auth-gated tabs in the Settings drawer render
+a login modal in place of their content when no session exists.
 
 ### 6.2 First-run onboarding
 First-run = `config/settings.json` missing OR `auth.passwordHash` empty.
 
 - `GET /api/auth` returns `{firstRun: true}`.
-- SPA renders an onboarding overlay that forces the user to set an admin
-  password before anything else.
-- `POST /api/onboard {password}` writes the bcrypt hash to settings, enables
-  the `form` method (only). Status view becomes immediately public.
+- SPA renders an onboarding overlay that forces an admin password before
+  anything else.
+- `POST /api/onboard {password}` writes the bcrypt hash, enables the `form`
+  method (only). Status view is immediately public.
+- **Password minimum: 8 characters.**
 
 ### 6.3 Four auth methods, all UI-configurable
 1. **HTML form** (default after first-run). `POST /api/login {password}` →
    `password_verify` against `auth.passwordHash`, `session_regenerate_id(true)`,
-   sets PHP session, returns CSRF token. Cookie flags: `HttpOnly`, `Secure`
-   (when HTTPS), `SameSite=Lax`.
-2. **HTTP Basic.** Uses the same `passwordHash`. PHP reads
-   `PHP_AUTH_USER`/`PHP_AUTH_PW` and `password_verify`s. For `curl` / scripts.
-3. **API key in header.** `Authorization: Bearer <token>`. Token auto-generated
-   (`bin2hex(random_bytes(32))`) when enabled, stored plaintext in settings,
-   shown in the UI with a "rotate" button. Compared with `hash_equals`.
+   sets PHP session, returns CSRF token. Cookie flags: `HttpOnly`,
+   `Secure` (when HTTPS), `SameSite=Lax`.
+2. **HTTP Basic.** Uses the same `passwordHash`. PHP reads `PHP_AUTH_USER` /
+   `PHP_AUTH_PW` and `password_verify`s. For `curl` / scripts.
+3. **API key in header.** `Authorization: Bearer <token>`. Token
+   `bin2hex(random_bytes(32))`. Compared with `hash_equals`.
 4. **Client certificate (via Caddy).** Caddy validates the cert and forwards a
    header (default `X-Client-Cert-Subject`). UI holds an allowlist of subject
-   DNs. Sample Caddyfile snippet ships in the repo.
+   DNs.
 
-### 6.4 Lockout prevention
-- At least one method must remain enabled. The UI disables the off-toggle on
-  the last enabled method with an explanation.
-- A "Change password" form exists in settings for authenticated users.
-- Recovery: documented filesystem edit — clear `auth.passwordHash` in
-  `settings.json` → triggers re-onboarding on next load.
+### 6.4 Auth tab UI (Settings drawer)
+For each method: an enable toggle plus, when enabled, the method's controls.
+
+- **HTML form** — toggle only. Sub-text: "HTML form against bcrypt hash."
+  Marked as `default`. **Cannot be disabled if no other method is enabled.**
+- **HTTP Basic** — toggle only. Sub-text: "Same password as form login."
+- **API key** — toggle. When enabled, expand to show:
+  - Token field, masked by default with a "Reveal" eye button.
+  - **Rotate** button — generates a new token and immediately replaces the old
+    one; shows the new value once with a copy button.
+  - "Copy" button on the revealed value.
+- **Client certificate** — toggle. When enabled, expand to show:
+  - Header name input (default `X-Client-Cert-Subject`).
+  - **Allowed subjects** — editable list. Each row = one subject DN string.
+    "+ Add subject" appends a row. "×" removes a row. Empty list = no one
+    matches, so the method effectively denies (clearly indicated).
+
+**Lockout prevention:** the off-toggle on the last enabled method is disabled
+with a tooltip "Enable another method first."
+
+**Change password** section below the method list: current password + new
+password (min 8) + confirm.
 
 ### 6.5 Auth check order on protected endpoints
 1. Session (form login)
@@ -288,42 +312,41 @@ First-run = `config/settings.json` missing OR `auth.passwordHash` empty.
 4. Client cert (if enabled)
 
 ### 6.6 CSRF
-- Required (header `X-CSRF-Token`) on all state-changing POSTs from form/session
-  auth.
-- Token-based (Bearer) auth is CSRF-exempt — cannot be triggered cross-origin
-  without the token.
+Required (header `X-CSRF-Token`) on all state-changing POSTs from form/session
+auth. Token-based (Bearer) auth is CSRF-exempt.
 
 ### 6.7 Brute-force throttle
-- File-counter throttle in `cache/throttle/<ip-hash>`: 5 failed attempts /
-  5 min / IP → returns 429 with `Retry-After`. Independent of Caddy/fail2ban.
+File-counter throttle in `cache/throttle/<ip-hash>`: 5 failed attempts /
+5 min / IP → 429 with `Retry-After`. Independent of Caddy/fail2ban.
 
 ### 6.8 Concurrent settings edits
-- `GET /api/settings` returns current `mtime` of `settings.json`.
-- `POST /api/settings` includes `If-Match: <mtime>`; mismatch → 409 with the
-  conflicting current value. UI prompts the user to merge.
+`GET /api/settings` returns current `mtime` of `settings.json`. `POST` sends
+`If-Match: <mtime>`; mismatch → 409 with the conflicting current value.
+
+### 6.9 Recovery
+Clear `auth.passwordHash` in `settings.json` (filesystem) → triggers
+re-onboarding on next load. Documented in README and shown in the Login modal.
 
 ---
 
 ## 7. Severity evaluation (Option 2, v2-ready)
 
-The evaluator always operates on a rule list internally. For v1 the rule list
-is synthesized from element thresholds; in v2 user-defined `customRules` will
-be concatenated. **Same evaluator, same output shape, zero migration.**
+The evaluator always operates on a rule list internally. v1 synthesizes the
+rule list from element thresholds. v2 will concatenate user `customRules`
+without touching the evaluator.
 
 ### 7.1 Default thresholds per element kind
 
-Provider ships sensible defaults:
+| element kind         | `warn` | `crit` |
+|----------------------|--------|--------|
+| `cpu` (%)            | 80     | 95     |
+| `mem` (%)            | 80     | 95     |
+| `disk` (%)           | 85     | 95     |
+| `response_time` (ms) | 1000   | 5000   |
+| `uptime` (% window)  | 99.0   | 95.0   |
 
-| element kind        | `warn` | `crit` |
-|---------------------|--------|--------|
-| `cpu` (%)           | 80     | 95     |
-| `mem` (%)           | 80     | 95     |
-| `disk` (%)          | 85     | 95     |
-| `response_time` (ms)| 1000   | 5000   |
-| `uptime` (% window) | 99.0   | 95.0   |
-
-Overrides in `itemConfig.<key>.thresholdOverrides.<elementKey>` are deep-merged
-(partial overrides allowed — set just `warn` and inherit `crit`).
+Per-item overrides at `itemConfig.<key>.thresholdOverrides.<elementKey>` are
+deep-merged (partial overrides allowed).
 
 ### 7.2 Algorithm
 
@@ -331,38 +354,34 @@ Overrides in `itemConfig.<key>.thresholdOverrides.<elementKey>` are deep-merged
 for each element with thresholds.warn → emit rule {key, >=, warn, degraded}
 for each element with thresholds.crit → emit rule {key, >=, crit, down}
 
-triggered = rules where condition met against current element values
-itemSeverity = max severity across triggered  (worst-of, never first-match-wins)
-providerSeverity = map(state) → ok | degraded | down
-finalSeverity = max(providerSeverity, itemSeverity)
+triggered          = rules matching current element values
+itemSeverity       = max severity across triggered (worst-of; never first-match-wins)
+providerSeverity   = map(state) → ok | degraded | down
+finalSeverity      = max(providerSeverity, itemSeverity)
 
-per element: set element.severity = "warn" | "crit" | null  (so UI can tint individual values)
+per element: set element.severity = "warn" | "crit" | null so the UI can tint individual values
 ```
 
-Severity vocabulary is **string-named** (`ok` / `degraded` / `down`), trivial to
-extend. Combining strategy is always worst-of.
-
 ### 7.3 v2 doors held open
-- `itemConfig` already has space for `customRules`, `evaluationMode`, `mutePeriods`.
-- Severity scope tiers (`providerDefaults`, `instanceConfig`) can be added as new
-  top-level merge tiers. Merge order will be: provider default → instance
-  override → item override → user custom rules. v1 only ships item override.
-- Element `severity` is in the API response today even though v1 only sets it
-  from thresholds — load-bearing for v2 per-element rule displays.
+- `itemConfig` reserves space for `customRules`, `evaluationMode`, `mutePeriods`.
+- Severity tiers (`providerDefaults`, `instanceConfig`) can be added as new
+  merge tiers.
+- Element `severity` ships in the API today even without user-editable thresholds
+  in v1 — load-bearing for v2 per-element rule displays.
 
-### 7.4 Settings UI for thresholds (v1)
-A collapsible "Thresholds" panel per item, listing every element that has
-default thresholds, with two number inputs (warn, crit) pre-filled with the
-provider default. "Reset to defaults" clears the override. v2 will add a
-"Custom rules" section in the same panel.
+### 7.4 Threshold editing UI — deferred to v2
+**v1 does not ship a UI for editing thresholds.** Provider defaults from §7.1
+are used as-is. The data model already supports per-item overrides
+(`itemConfig.<key>.thresholdOverrides`); v2 adds the UI. The Catalog tab in v1
+shows only visibility + rename per item.
 
 ---
 
 ## 8. API endpoints
 
 ```
-GET  /api/state              public      normalized items array, ETag, Cache-Control: private, no-cache
-GET  /api/config             public      UI config (theme, refreshIntervalSec, item order, lastDiscoveryAt)
+GET  /api/state              public      normalized items array + meta; ETag, Cache-Control: private, no-cache
+GET  /api/config             public      UI config (theme defaults, refresh interval, site title, accent, cardstyle, mark, item order)
 GET  /api/auth               public      { authenticated, firstRun, method, csrfToken? }
 POST /api/login              public      { password } → session + CSRF, 429 if throttled
 POST /api/logout             auth        end session
@@ -387,9 +406,25 @@ GET  /health                 public      200 + {version, uptimeSec}
 }
 ```
 
-Per-item failures appear as items with `error` set + `state: "unknown"`. Per-
-instance failures appear in `meta.instanceErrors` with all of that instance's
-items also flagged.
+Per-item failures appear as items with `error` set + `state: "unknown"`.
+
+### `/api/config` response (public — feeds the SPA's initial render)
+
+```jsonc
+{
+  "siteTitle": "infra.example.com",
+  "refreshIntervalSec": 30,
+  "appearance": {
+    "theme": "auto", "accent": "mint", "cardstyle": "paper", "mark": "stripe",
+    "density": "regular", "mode": "detailed", "sparklines": true, "summaryBar": true
+  }
+}
+```
+
+Admin-only appearance fields (`accent`, `cardstyle`, `mark`) ship in this
+public payload so anonymous viewers get the chosen brand. Per-viewer fields
+(`theme`, `density`, `mode`, `sparklines`, `summaryBar`) are defaults — the
+client checks localStorage first and falls back to these.
 
 ---
 
@@ -397,106 +432,172 @@ items also flagged.
 
 1. `/api/state` invoked → `Aggregator::get()`.
 2. `Cache::get('state', ttl)` → return immediately if fresh.
-3. **Cache stampede prevention.** Try to acquire `flock(LOCK_EX | LOCK_NB)` on
+3. **Cache stampede prevention.** `flock(LOCK_EX | LOCK_NB)` on
    `cache/state.json`. If acquired → regenerate. If not → another worker is
-   regenerating; serve current cache (may be slightly stale) without waiting.
-4. Regeneration: loop instances → resolve provider → call `fetch(config, selectedItemIds)`.
-   - Each instance fetch is wrapped in try/catch; failures populate `instanceErrors`,
-     items synthesized with `state: "unknown"` + `error`.
-   - Apply per-instance backoff (§11): if instance is in cooldown, skip and serve
-     stale items + a cooldown note.
+   regenerating; serve current cache without waiting.
+4. Regeneration: loop instances → resolve provider → call
+   `fetch(config, selectedItemIds)`. Per-instance try/catch; failures populate
+   `instanceErrors`, items synthesized with `state: "unknown"` + `error`.
+   Apply per-instance backoff (§11): instances in cooldown are skipped.
 5. Apply visibility filter and `displayOrder` ordering.
 6. Run `Evaluator` over the items to compute severities.
-7. Write cache atomically; emit `ETag` (hash of payload body).
-8. **Stale-while-error fallback.** If regeneration fails entirely, return the
-   last cache with `meta.freshness = "stale"` + `staleSince` timestamp. Never
-   return an empty page when older data exists.
+7. Write cache atomically; emit `ETag` (hash of payload).
+8. **Stale-while-error.** If regeneration fails entirely, return the last cache
+   with `meta.freshness = "stale"` + `staleSince`.
 
 ### Cache TTL
-`ttl = max(5s, min(10s, refreshIntervalSec / 2))`. Browser polling intervals
-shorter than TTL just hit cache; longer intervals trigger a fetch per poll.
+`ttl = max(5s, min(10s, refreshIntervalSec / 2))`.
 
-### Outbound HTTP timeouts (per upstream request)
-- `CURLOPT_CONNECTTIMEOUT = 5`
-- `CURLOPT_TIMEOUT = 15`
+### Outbound HTTP (per upstream request)
+- `CURLOPT_CONNECTTIMEOUT = 5`, `CURLOPT_TIMEOUT = 15`
 - `CURLOPT_PROTOCOLS = CURLPROTO_HTTP | CURLPROTO_HTTPS`
-- `CURLOPT_SSL_VERIFYPEER = true`
-- `CURLOPT_FOLLOWLOCATION = false`
-- Sensible UA header, accept gzip.
+- `CURLOPT_SSL_VERIFYPEER = true`, `CURLOPT_FOLLOWLOCATION = false`
 
 ---
 
 ## 10. Frontend
 
-### 10.1 Files
-- `assets/app.js` — tiny reactive store, fetcher (visibility + ETag + countdown),
-  History API routing for `/`, `/options`, `/about`, render functions per element
-  type, sparkline SVG, drag-reorder.
-- `assets/app.css` — OKLCH design tokens, CSS Grid + container queries, View
-  Transitions for overlays, `prefers-color-scheme` + manual override,
-  `prefers-reduced-motion` respected.
-- No build step. The PHP front controller serves `index.php` for unknown SPA
-  routes.
+### 10.1 Tech
+- Preact + HTM via import map. Module sources under `public/assets/components/`,
+  imported by `app.js`.
+- One CSS file: `public/assets/app.css`. **No inline styles** (no `style={...}`
+  prop, no `<style>{...}</style>` blocks). Strict CSP `style-src 'self'` stays.
+- Sparklines: inline SVG, no charting library.
+- No build step. `bin/vendor.mjs` only copies static module files.
 
 ### 10.2 Polling
-- Default 30s, configurable 5–600s.
-- `document.visibilityState === 'visible'` guards polling; resumes on focus.
-- `If-None-Match` on every poll; 304 = no DOM work.
-- Visible countdown to next refresh in the menu icon.
+- Default 30s, configurable 5–600s (admin-only).
+- `document.visibilityState === 'visible'` gates polling.
+- `If-None-Match` on every poll; 304 → no DOM work.
+- Visible countdown to next refresh in the topbar.
 
 ### 10.3 Rendering
-- One renderer per element type (~6 small functions). The card composes elements.
-- Card grid is keyed by `instanceId + itemId`. On each refresh, only mutate
-  elements that changed (no innerHTML of the grid).
-- **XSS rule: never set `innerHTML` with provider data.** `textContent` and
-  `createElement` only. Documented as a code rule.
+- Card grid keyed by `instanceId + itemId`. Only mutate elements that changed.
+- Preact's `h()` API; HTM tagged template literals for readable markup.
+- **XSS rule:** never inject untrusted strings via `innerHTML` / `dangerouslySetInnerHTML`.
+  Default Preact rendering (text children) is safe.
 
-### 10.4 Visual direction
-- Auto dark/light + manual override.
-- Status conveyed by color **and** icon **and** text (not color alone).
-- System font stack, monospace numerals for metrics.
-- Inline SVG sparklines (`<polyline>` + gradient fill, no library).
-- Subtle motion only (status-change pulse, refresh tick). Respects
-  `prefers-reduced-motion`.
-- Floating top-right menu button (glass background, fixed position, keyboard
-  accessible), opens options drawer or about modal.
-- Mobile-first; cards reflow via container queries.
+### 10.4 Visual direction and chrome
 
-### 10.5 Affordances
-- **Stale indicator** — when cache is served past freshness, subtle top banner
-  with "Last updated 2 min ago".
+Layout (top → bottom):
+
+- **Topbar** (fixed top, glass background). Left: brand chip with bolt icon
+  + `Status · {ui.siteTitle}`. Center: `Simple | Detailed` segmented toggle.
+  Right: theme toggle (sun/moon), lock icon → login (or status indicator when
+  authed), cog icon → settings, About chip with refresh countdown.
+- **Hero section.** Eyebrow pill (`Incident in progress` / `Degraded performance`
+  / `All systems normal`) + headline (`N services down` / `N services degraded` /
+  `All services operational`) + summary stat row (Operational `n/total`,
+  Degraded `n`, Down `n`, Paused `n`, Last update `relative`). Optional
+  stacked-bar legend (toggleable via `summaryBar`).
+- **Stale banner** (when `meta.freshness = "stale"`).
+- **Section heading.** `Services · {count} items · refreshes every {interval}s`.
+- **Card grid.** Element cards laid out per §4. Card chrome per §10.5.
+- **Footer.** Copyright + site title · About · Health · JSON. (No RSS.)
+
+Appearance customization (all live-applied):
+- `theme` — auto / light / dark (per-viewer).
+- `density` — cozy / regular / airy (per-viewer; changes card padding + grid columns).
+- `cardstyle` — flat / paper / elev (admin-only; card surface treatment).
+- `mark` — stripe / dot (admin-only; how non-ok cards stand out).
+- `accent` — mint / citron / violet / coral / ink (admin-only; links + focus).
+- `sparklines` — on / off (per-viewer; toggles inline sparkline rendering).
+- `summaryBar` — on / off (per-viewer; toggles hero stackbar).
+- `mode` — simple / detailed (per-viewer; see §10.7).
+
+Design tokens are OKLCH; status colors remain fixed regardless of `accent`.
+Status conveyed by color AND icon AND text (never color alone). Subtle motion
+only; respects `prefers-reduced-motion`. Mobile-first; topbar collapses below
+~520 px to brand + overflow menu containing the segmented toggle, theme, lock,
+cog, about.
+
+### 10.5 Card chrome
+- Card head: severity dot + display name + statusText + state chip (when state ≠ active).
+- Down banner inside body when `severity = down` and state = active (icon +
+  short error).
+- Paused / maintenance banner inside body when state = paused / maintenance.
+- Body: grouped elements (gauges/counters cluster into a row; uptime, boolean,
+  text, events, link each take their own row).
+- Card foot: "Last seen Xs ago" + provider id (small, muted).
+
+### 10.6 Settings UI — tabbed drawer
+
+A single right-side drawer opened by the cog icon. Four tabs:
+
+1. **Appearance** — always visible (anonymous viewers too):
+   - Per-viewer controls (theme, density, mode, sparklines, summaryBar)
+     persist to localStorage immediately. No save button.
+   - When authed: a separate "Site defaults" subsection appears below with
+     admin-only controls (default theme, accent, cardstyle, mark, refresh
+     interval, site title). Saving uses `POST /api/settings`.
+2. **Catalog** — auth-gated. Per-instance tree of discovered items with
+   indent for hierarchy. Each row has a visibility checkbox + rename. Per
+   instance: `Re-discover`, `Edit config`, `Remove` buttons. Footer: `+ Add
+   instance` opens the add-instance flow.
+3. **Display order** — auth-gated. Single flat draggable list of all
+   currently-visible items in `displayOrder`. Drag rows anywhere (across
+   instances). Drop persists immediately.
+4. **Auth** — auth-gated. Per-method toggle + per-method controls (§6.4),
+   change password.
+
+Auth-gated tabs render an inline "Sign in to manage" panel with a password
+field when no session exists.
+
+### 10.7 Simple vs Detailed mode (per-viewer)
+
+- **Simple mode.** Topbar + hero unchanged. The card grid is replaced by a
+  flat list of one-line **status pills** per visible item: severity dot +
+  display name + statusText + (state chip if state ≠ active). No metrics, no
+  sparklines, no history, no text rows, no events, no booleans, no links.
+  Compact and at-a-glance.
+- **Detailed mode.** Topbar + hero + full element cards as described above.
+
+Mode is per-viewer (localStorage). Admin sets the default.
+
+### 10.8 Appearance settings storage split
+
+**Per-viewer (localStorage under `simplestatus.prefs.v1`):**
+- `theme`, `density`, `mode`, `sparklines`, `summaryBar`
+
+**Admin default (server, `ui.*` in `settings.json`):**
+- All of the above (used when the per-viewer key is absent)
+- `accent`, `cardstyle`, `mark`, `refreshIntervalSec`, `siteTitle` (no
+  per-viewer override; admin-only)
+
+Boot sequence:
+1. SPA fetches `/api/config` → admin defaults.
+2. SPA reads `localStorage` → per-viewer overrides.
+3. Effective config = per-viewer overrides over admin defaults.
+
+A "Reset to site defaults" button in the Appearance tab clears the
+localStorage key.
+
+### 10.9 Add-instance flow
+
+Triggered by `+ Add instance` in the Catalog tab.
+
+1. **Provider picker** — dropdown of registered providers (Beszel,
+   UptimeRobot, …).
+2. **Config form** — rendered from chosen provider's `configSchema()`:
+   field per declared input (text / secret / url / select). Inline help per
+   field. "Display name" field for the instance.
+3. **Test & discover** — `POST /api/discover` with `{ provider, config }`.
+   Errors render inline. Success → show discovered tree.
+4. **Review tree** — all items checked by default, hierarchy shown. User can
+   uncheck unwanted items.
+5. **Save** — `POST /api/settings` adds the instance + items + appends them to
+   `displayOrder`. Drawer returns to Catalog tab.
+
+### 10.10 Affordances
+- **Stale indicator** — banner with "Last updated 2 min ago" when freshness = stale.
 - **Empty / error states** — no instances → first-add CTA; per-instance failure
   → faded cards with hover-error tooltip; all failed → top banner.
-- **Dynamic page title** — `(2 down) · Status` so the tab is informative.
+- **Dynamic page title** — `(2 down) · Status · {siteTitle}`.
 - **Favicon tint** by worst current severity (small SVG generated client-side).
-- **Accessibility** — `aria-live="polite"` on the status region for transitions,
-  visible focus rings, full keyboard nav for menu and settings.
-- **Time** — server emits Unix seconds; client renders relative ("12s ago") with
-  absolute on hover in browser locale.
-
-### 10.6 Settings UI
-
-Two panels:
-
-**Catalog (top).** Per-instance tree showing every discovered item with indent
-for hierarchy. Each row has:
-- Visibility checkbox
-- Rename inline
-- "Thresholds" collapsible (per-element warn/crit number inputs, "Reset" button)
-
-Per instance: `[Re-discover]` button, `[Edit config]` button, `[Remove]` button.
-
-**Display order (bottom).** Single flat draggable list of all currently-visible
-items, in `displayOrder`. Drag a row anywhere (across instances and providers).
-This is what the status page will actually show.
-
-Why two panels rather than one combined view: scales to 50+ items, makes the
-"what's shown vs what exists" mental model unambiguous, avoids the surprise of
-dragging a row from one instance group into another.
-
-Adding an instance: provider picker → config form (built from `configSchema()`)
-→ "Test & discover" runs `validate()` then `discover()` and shows the resulting
-tree with all items pre-selected → save.
+- **Accessibility** — `aria-live="polite"` on the status region; visible focus
+  rings; full keyboard nav for menu and settings; respects `prefers-reduced-motion`.
+- **Time** — server emits Unix seconds; client renders relative ("12s ago")
+  with absolute on hover in browser locale.
 
 ---
 
@@ -506,13 +607,11 @@ Every layer catches, attaches an error, returns valid output. Failures never
 cascade.
 
 1. **Aggregator** wraps per-instance fetches. A dead instance returns its
-   items with `state: "unknown"` + instance-level `error`. Sibling instances
-   unaffected.
+   items with `state: "unknown"` + instance-level `error`.
 2. **Provider `fetch`** wraps per-item parse. A malformed record yields a
-   minimal `{id, displayName, state: "unknown", error}` item. Sibling items
-   unaffected.
-3. **Element parse** wraps per-element extraction. A missing or malformed
-   `cpu` skips that element. Sibling elements still rendered.
+   minimal `{id, displayName, state: "unknown", error}` item.
+3. **Element parse** wraps per-element extraction. A missing/malformed `cpu`
+   skips that element. Sibling elements still rendered.
 4. **Field coercion** uses defensive accessors only. Unknown keys ignored,
    missing keys skipped silently, numeric strings coerced, type mismatches
    skipped.
@@ -530,36 +629,31 @@ Safe::bool($arr, 'path.to.key', $default = null): ?bool
 
 ### Additional resilience
 - **Stale-while-error cache fallback** (§9). UI shows "stale" banner.
-- **Cache schema version** in the cache file header; mismatch → treat as missing.
-- **settings.json corruption.** Never auto-overwrite. Show error in UI;
-  preserve the file so the user can fix it manually.
+- **Cache schema version** in the cache file; mismatch → treat as missing.
+- **settings.json corruption.** Never auto-overwrite. Surface error in UI;
+  preserve the file.
 - **Per-instance backoff.** On failure, double the next-attempt delay (cap 5
-  min). On success, reset. Prevents hammering a dead upstream.
+  min). On success, reset.
 - **Test fixtures.** Captured real responses + corrupted/mutated copies under
-  `tests/fixtures/`. `tests/run.php` exercises parsers against both, exits
-  non-zero on failure.
+  `tests/fixtures/`. `tests/run.php` exercises parsers against both.
 
 ---
 
 ## 12. Provider — UptimeRobot (v1)
 
 - **Endpoint:** `POST https://api.uptimerobot.com/v2/getMonitors`
-  (Content-Type: `application/x-www-form-urlencoded`).
-- **Auth:** read-only API key in `api_key` body field. Main key works too;
-  read-only is the documented safer choice.
-- **Server-side proxy** (not browser-direct). Reasons: shared cache across
-  clients, key kept off the wire, single polling code path.
-- **Params we send:**
-  `format=json`, `response_times=1`, `response_times_limit=60`,
+  (`Content-Type: application/x-www-form-urlencoded`).
+- **Auth:** read-only API key in `api_key` body field.
+- **Server-side proxy** (not browser-direct). Reasons: shared cache, key off
+  the wire, single polling code path.
+- **Params:** `format=json`, `response_times=1`, `response_times_limit=60`,
   `response_times_average=1`, `custom_uptime_ratios=1-7-30-90`, `logs=1`,
   `logs_limit=10`.
-- **Pagination:** `offset`/`limit` (max 50); loop until
-  `pagination.total` consumed.
-- **Rate limits:** Free 10 req/min, Pro `monitors * 2` (max 5000). Server cache
-  TTL respects this. `X-RateLimit-*` headers monitored and surfaced in logs.
+- **Pagination:** `offset` / `limit` (max 50); loop until `pagination.total`.
+- **Rate limits:** Free 10 req/min, Pro `monitors * 2` (max 5000). Server
+  cache TTL respects this. `X-RateLimit-*` headers logged.
 
 ### Mapping
-
 Monitor `status` → state + severity:
 - 2 (up) → state: active, severity: ok
 - 8 (seems down) → state: active, severity: degraded
@@ -567,97 +661,75 @@ Monitor `status` → state + severity:
 - 0 (paused) → state: paused
 - 1 (not checked yet) → state: unknown
 
-Monitor `type` (1=HTTP, 2=keyword, 3=ping, 4=port, 5=heartbeat) surfaced in
-discovery `hints`.
-
 ### Discovery
-Returns each monitor as a flat node: `{id, label=friendly_name, kind="monitor", parentId=null, hints=type+url}`.
+Each monitor as a flat node: `{id, label=friendly_name, kind="monitor", parentId=null, hints=type+url}`.
 
 ### Fetch
-Returns normalized item per monitor:
-- `state` per mapping above; provider does NOT set severity (evaluator does).
+Per monitor → normalized item:
+- `state` per mapping above; severity computed by the evaluator.
 - `elements`:
-  - `counter` `response_time` (ms) from latest `response_times` value, history
-    from the rest.
-  - `uptime` with windows derived from `custom_uptime_ratios` (1d, 7d, 30d, 90d).
-  - `events` from `logs` (down/up/paused entries → `{t: datetime, title, severity, durationSec: duration}`).
+  - `counter` `response_time` (ms) — current + history from `response_times`.
+  - `uptime` with windows derived from `custom_uptime_ratios=1-7-30-90`.
+  - `events` from `logs` (down/up/paused entries).
   - `link` to the monitored URL.
 
 ---
 
 ## 13. Provider — Beszel (v1)
 
-Beszel hub = PocketBase. Official REST API docs:
-`https://beszel.dev/guide/rest-api`.
+Beszel hub = PocketBase. Official REST API: `https://beszel.dev/guide/rest-api`.
 
 ### 13.1 Auth
-- Authenticate as a **regular user** (NOT superuser). Beszel's documented
-  integration path. Access to systems is scoped by the `systems.users` relation.
-  The operator assigns the user to the systems they want exposed.
+- Authenticate as a **regular user** (NOT superuser).
 - `POST {hubUrl}/api/collections/users/auth-with-password` with
   `{identity, password}` → returns `{token, record}`.
-- Send `Authorization: <token>` (PocketBase format; no "Bearer" prefix) on
-  subsequent requests.
+- Send `Authorization: <token>` (PocketBase format; no "Bearer" prefix).
 - **JWT lifecycle.** Cache the token in-process for the request; on 401,
-  re-auth once and retry. Never persist the token.
+  re-auth once and retry. Never persist.
 
 ### 13.2 Endpoints used
-- **List systems:**
-  `GET {hubUrl}/api/collections/systems/records?perPage=200`
+- **List systems:** `GET {hubUrl}/api/collections/systems/records?perPage=200`
   Fields: `id`, `name`, `status` (up|down|paused|pending), `host`, `port`,
-  `info` (json), `created`, `updated`.
-- **List system_details for a system:**
-  `GET {hubUrl}/api/collections/system_details/records?filter=system='{id}'&perPage=1`
-  Fields: `hostname`, `os_name`, `kernel`, `cpu`, `arch`, `os`, `cores`,
-  `threads`, `memory`, `podman`, `updated`.
-- **Latest stats + sparkline history for a system:**
+  `info` (json).
+- **System details:** `GET {hubUrl}/api/collections/system_details/records?filter=system='{id}'&perPage=1`
+  Fields: `hostname`, `os_name`, `kernel`, `cpu`, `arch`, `cores`, `threads`,
+  `memory`, `podman`.
+- **Latest stats + sparkline history:**
   `GET {hubUrl}/api/collections/system_stats/records?filter=system='{id}'%20%26%26%20type='1m'&sort=-created&perPage=60`
-  Fields: `id`, `system`, `stats` (json, max 2 MB), `type` (1m|10m|20m|120m|480m),
+  Fields: `id`, `system`, `stats` (json), `type` (1m|10m|20m|120m|480m),
   `created`, `updated`.
 
 ### 13.3 Status mapping
-- `up` → state: active
-- `down` → state: active, severity-via-evaluator will see element issues; if
-  no element data, provider sets severity hint via empty elements + statusText.
-  Practically: `down` → state: active, but provider attaches an `error` of
-  "host reported down" and elements have no values → evaluator sees no
-  thresholds triggered. So we explicitly set severity to `down` via the
-  internal `providerSeverityOverride` field on the item — supported by the
-  evaluator as the "providerSeverity" input. (Implementation detail: the
-  Provider may return an item with a `_providerSeverity: "down"` hint
-  consumed only by the evaluator; not part of the public element shape.)
-- `paused` → state: paused
-- `pending` → state: unknown
+- `up` → state: active (severity from evaluator).
+- `down` → state: active, server attaches a hint that the evaluator uses to
+  set severity = down even when no element thresholds are tripped.
+- `paused` → state: paused.
+- `pending` → state: unknown.
 
 ### 13.4 Stats blob — undocumented, defensive
 Beszel's `stats` JSON shape is undocumented and stated to change in minor
-releases. The provider parses defensively (§11). On first wiring against a
-live Beszel, the current keys are captured into `tests/fixtures/beszel/` and
-the parser is tested against them.
+releases. The provider parses defensively (§11). On first wiring, current keys
+are captured into `tests/fixtures/beszel/` and the parser is tested against
+both happy and corrupted variants.
 
-Initial best-effort mapping (verified live during build step 7):
+Initial best-effort mapping (verified live during build step 9):
 - `cpu` → `gauge` `cpu` (%, max 100)
 - `mem` / `memUsed` / `memPct` → `gauge` `mem` (%, max 100)
 - `disk` / `diskUsed` / `diskPct` → `gauge` `disk` (%, max 100); per-disk
   entries become sub-items at discovery time
-- `net.rx` / `net.tx` (or similar) → `counter` `net_rx` / `net_tx` (KB/s or MB/s)
-- Container entries become sub-items only if Docker stats are present
+- `net.rx` / `net.tx` → `counter` `net_rx` / `net_tx` (KB/s or MB/s)
 - Unknown keys: ignored (logged at info)
 
 ### 13.5 Discovery
-- Auth → list systems → for each system fetch one `system_stats` record and
-  `system_details` to enumerate sub-items (disks, network interfaces, sensors,
-  containers).
-- Return flat tree: host node + child nodes per sub-entity.
-- Cost: `1 + 2N` API calls. Only on user-triggered discovery; periodic
-  polling unaffected.
+Auth → list systems → for each system fetch one `system_stats` record and
+`system_details` to enumerate sub-items (disks, network interfaces, sensors,
+containers). Return flat tree. Cost: `1 + 2N` API calls — only on user-
+triggered discovery.
 
 ### 13.6 Fetch
-- Group requested `itemIds` by parent system.
-- One `system_stats` query per system covers all that system's selected
-  sub-items (one fetch yields host card data + every disk/interface card).
-- One `system_details` query per system for the `text` element.
-- Normalize and return.
+Group requested `itemIds` by parent system. One `system_stats` query per
+system covers all that system's selected sub-items. One `system_details` per
+system for the `text` element.
 
 ### 13.7 Config schema
 - `url` (https URL, required)
@@ -665,10 +737,9 @@ Initial best-effort mapping (verified live during build step 7):
 - `password` (secret, required)
 
 ### 13.8 Live-verification notes
-- Beszel collection rules in the migration snapshot show `listRule: null`
-  (superuser-only) but the docs show regular-user querying works. Confirm on
-  a live hub during integration; document the systems-to-users assignment
-  requirement clearly in README.
+Beszel migration snapshot shows `listRule: null` (superuser-only) but the
+docs show regular-user querying works. Confirm on a live hub during
+integration; document the systems-to-users assignment requirement in README.
 
 ---
 
@@ -676,28 +747,28 @@ Initial best-effort mapping (verified live during build step 7):
 
 - **SSRF.** Outbound HTTP only to user-configured URLs. cURL restricted to
   HTTP/HTTPS, TLS verify on, redirects disabled, timeouts set. No private-IP
-  denylist (user may legitimately target localhost/LAN); risk documented in
-  settings UI.
+  denylist (legitimate localhost/LAN targets); risk documented in settings UI.
 - **Brute-force throttle.** §6.7.
 - **CSRF.** §6.6.
 - **Session fixation.** `session_regenerate_id(true)` on every login.
 - **Strict CSP.** `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`.
-  Feasible because no framework, no inline scripts.
+  **No inline styles, no inline scripts** — enforced in CSS pipeline (style-src
+  stays strict).
 - **Other security headers.** `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
   `Strict-Transport-Security: max-age=31536000; includeSubDomains` when HTTPS.
-- **Cache-Control: private, no-store** on every `/api/settings*`, `/api/discover`,
+- **Cache-Control: private, no-store** on `/api/settings*`, `/api/discover`,
   `/api/auth`.
 - **Error handler.** Production returns generic 500 body with opaque incident
-  id; full detail goes to FPM error log. Never leaks paths or stack traces.
+  id; full detail goes to FPM error log.
 - **XSS rule.** §10.3.
 - **Secrets in GET /api/settings.** Returned plaintext to the authed admin
-  (single tenant). UI masks them by default with a "reveal" toggle.
+  (single tenant). UI masks them by default with a "reveal" toggle. Beszel
+  JWT cached in-process only.
 - **File permissions.** `config/` and `cache/` 0700, files 0600, owned by FPM
   user. Install docs cover it.
-- **Token compare.** `hash_equals`. **Password compare.** `password_verify`.
-  Both constant-time.
+- **Token compare** `hash_equals`. **Password compare** `password_verify`.
 - **Cookie flags.** `HttpOnly`, `Secure` (HTTPS), `SameSite=Lax`.
 
 ---
@@ -705,12 +776,12 @@ Initial best-effort mapping (verified live during build step 7):
 ## 15. Performance
 
 - **Cache stampede prevention** via `flock` on regeneration. §9.
-- **Outbound timeouts** 5s connect / 15s total. §9.
-- **Parallel provider fetches.** v1 serial. `curl_multi_*` only if measured need.
+- **Outbound timeouts** 5s connect / 15s total.
+- **Parallel provider fetches.** v1 serial; `curl_multi_*` only if measured need.
 - **Compression.** Caddy gzip/zstd, documented in `Caddyfile.example`.
-- **Opcache** enabled, documented in `README.md`.
+- **Opcache** enabled, documented in README.
 - **DOM update strategy.** Card grid keyed by item id; only mutate elements
-  that changed. No full re-render per poll. §10.3.
+  that changed across polls. No full re-render per poll.
 - **ETag on `/api/state`.** Client sends `If-None-Match`; 304 saves bandwidth
   and DOM work.
 
@@ -719,19 +790,20 @@ Initial best-effort mapping (verified live during build step 7):
 ## 16. Maintainability
 
 - **Strict types** everywhere. PSR-12.
-- **No globals.** `Http\Request` wraps `$_SERVER`/`$_GET`/`$_POST`/headers.
-- **`Util\Log`** wraps `error_log` with levels (info/warn/error). Never logs
-  secrets.
+- **No globals.** `Http\Request` wraps `$_SERVER` / `$_GET` / `$_POST` / headers.
+- **`Util\Log`** wraps `error_log` with levels (info/warn/error). Never logs secrets.
 - **Schema versioning.** `settings.json` carries `schemaVersion`. `Config\Migrations`
   runs migrations on read. v1 = 1.
-- **Provider versioning.** Each provider has a `VERSION` constant. Each
-  instance stores `providerVersion`. Per-provider migration callback runs on
-  read when stored < current.
+- **Provider versioning.** Each provider has a `VERSION` constant. Each instance
+  stores `providerVersion`. Per-provider migration callback runs on read when stored < current.
 - **Provider contract doc.** `src/Providers/README.md` — interface, stable-key
   rule, defensive-parsing rule, normalized shape. Required reading.
-- **Tests.** `tests/run.php` — tiny no-Composer runner. Asserts against
-  fixtures (happy path + corrupted variants). Exits non-zero on failure.
-  Easy to wire to CI later.
+- **Tests.** `tests/run.php` — no-Composer runner. Asserts against fixtures
+  (happy path + corrupted variants). Exits non-zero on failure.
+- **Vendor pipeline.** `package.json` pins deps; `npm install && npm run vendor`
+  refreshes `public/assets/vendor/`. Committed artifacts. README documents the
+  update flow; `vendor.mjs` writes a manifest with SHA-256s per file so
+  tampering is detectable.
 
 ---
 
@@ -740,66 +812,71 @@ Initial best-effort mapping (verified live during build step 7):
 - **Health endpoint.** `GET /health` → `{status: "ok", version, uptimeSec}`.
 - **Logging.** FPM error log (PHP `error_log`). All upstream failures go here
   with instance id + provider id + a redacted error.
-- **Backups.** `settings.json` is the only durable state. Document in README.
-- **Upgrade path.** Replace files; schema migrations run on first read.
-- **Time.** Server uses UTC internally; client renders in browser locale.
-- **No instances configured.** Show empty-state CTA in main view, plus
-  unauth'd users see "Status page not yet configured" rather than a blank page.
+- **Backups.** `settings.json` is the only durable state.
+- **Upgrade path.** Replace files; schema migrations run on first read. For
+  vendor refresh: `npm install && npm run vendor && git commit`.
+- **Time.** Server UTC internally; client renders in browser locale.
+- **No instances configured.** Main view shows empty-state CTA.
 
 ---
 
 ## 18. Out of scope for v1 (deliberately)
 
 - i18n (English only)
-- Email/webhook alerts (status page is not a notifier)
-- Historical incident log (a future provider could expose this; not built-in)
+- Email / webhook alerts (status page is not a notifier)
+- Historical incident log (a future provider could expose this)
 - Multi-user accounts (single admin, single tenant)
 - Pull-to-refresh on mobile (visibility-based auto-refresh covers it)
 - `curl_multi` parallel provider fetches
-- Rule editor (Option 2 thresholds only; rules in v2)
-- Per-instance and per-provider threshold defaults (item-level only in v1;
-  upper tiers slot in cleanly later)
-- Container/Docker stats (parser will handle them if Beszel returns them, but
+- Threshold editing UI (data model ready; v2 ships the editor)
+- Rule editor (v2)
+- Per-instance and per-provider threshold defaults (item-level only in v1)
+- Container / Docker stats (parser handles them if Beszel returns them, but
   not first-class in v1 settings UI)
+- RSS / Atom feed of state transitions
 
 ---
 
 ## 19. Build order
 
 1. Repo scaffold + autoloader + `Caddyfile.example` + `public/index.php` front
-   controller + error handler + security headers + CSP.
-2. `Config/Store` with atomic JSON write + corruption-safe read.
-   `Config/Migrations` skeleton.
-3. `Util/Safe`, `Util/Log`, `Http/Request`, `Http/Json`, `Http/Csrf`.
-4. `Auth/*` — Password, Token, Session, Throttle. CSRF. First-run detection.
-5. `/api/auth`, `/api/login`, `/api/logout`, `/api/onboard`. Login throttle wired.
-6. `Providers/Provider` interface + `Registry`. `Providers/README.md`.
-7. `State/HttpClient` (cURL with hardened defaults). `State/Backoff`.
-   `State/Cache` (file TTL + stampede flock + stale-while-error).
-   `State/Evaluator`.
-8. `Providers/UptimeRobot` end-to-end. Fixtures captured. Parser tests.
-9. `Providers/Beszel` end-to-end against a live hub. Fixtures captured.
-   `stats` keys pinned. Parser tests including corrupted-fixture cases.
-10. `State/Aggregator` wiring providers, evaluator, cache, backoff.
-11. `/api/state` with ETag. `/api/config`. `/api/settings` (GET/POST with
+   controller + error handler + security headers + strict CSP.
+2. **Vendor pipeline:** `package.json` declaring Preact + HTM. `bin/vendor.mjs`
+   copies module files into `public/assets/vendor/` with version-pinned
+   filenames + LICENSE files + SHA-256 manifest. Import map in `index.php`.
+   Commit vendor artifacts.
+3. `Config/Store` (atomic JSON write, corruption-safe read) + `Config/Migrations` skeleton.
+4. `Util/Safe`, `Util/Log`, `Http/Request`, `Http/Json`, `Http/Csrf`.
+5. `Auth/*` — Password, Token, Session, Throttle. CSRF. First-run detection.
+6. `/api/auth`, `/api/login`, `/api/logout`, `/api/onboard`. Login throttle wired.
+7. `Providers/Provider` interface + `Registry`. `Providers/README.md`.
+8. `State/HttpClient` (hardened cURL). `State/Backoff`. `State/Cache` (file TTL
+   + stampede flock + stale-while-error). `State/Evaluator`.
+9. `Providers/UptimeRobot` end-to-end. Fixtures captured. Parser tests.
+10. `Providers/Beszel` end-to-end against a live hub. Fixtures captured. `stats`
+    keys pinned. Parser tests including corrupted-fixture cases.
+11. `State/Aggregator` wiring providers, evaluator, cache, backoff.
+12. `/api/state` with ETag. `/api/config`. `/api/settings` (GET/POST with
     If-Match). `/api/discover`. `/health`.
-12. Frontend shell (`index.php` HTML + `assets/app.css` design tokens, layout,
-    dark/light, container queries).
-13. Frontend fetcher (visibility + ETag + countdown + stale banner +
-    per-item error rendering).
-14. Status card + each element-type renderer + inline-SVG sparkline.
-15. Onboarding overlay + login modal + session/CSRF wiring + auth UI in
-    settings.
-16. Settings: catalog tree (visibility + rename + thresholds + re-discover) +
-    display order list (drag-reorder) + instance add/edit/remove flow with
-    "Test & discover".
-17. About modal, theme toggle, dynamic page title, favicon tint, a11y polish.
-18. End-to-end smoke against real Beszel + UptimeRobot. Screenshots.
-19. `README.md` — prerequisites, install, file permissions, Caddyfile, recovery,
-    backup, screenshots.
+13. Frontend shell: `index.php` HTML with import map + `assets/app.css` design
+    tokens + topbar + footer + hero + grid layout + responsive collapse.
+14. Frontend store + fetcher (visibility, ETag, countdown, stale banner,
+    per-item error rendering) + localStorage prefs.
+15. Status card + each element-type renderer + inline-SVG sparkline.
+16. Simple vs Detailed mode renderer (one-line pills vs full cards).
+17. Onboarding overlay + login modal + session/CSRF wiring + auth-gated tab
+    inline login.
+18. Settings drawer with 4 tabs:
+    - Appearance (per-viewer + admin-default subsections, anonymous-friendly)
+    - Catalog (visibility + rename + re-discover + add/edit/remove instance + add-instance flow)
+    - Display order (drag-reorder, persists immediately)
+    - Auth (4 methods incl. token rotate, client-cert allowlist editor, lockout guard, change password)
+19. About modal + theme toggle + dynamic page title + favicon tint + a11y polish.
+20. End-to-end smoke against real Beszel + UptimeRobot. Screenshots.
+21. `README.md` — prerequisites, install (`npm install && npm run vendor`),
+    file permissions, Caddyfile, recovery, backup, screenshots.
 
-Each step has a verification check (test run, manual flow, or live-API check)
-before the next step starts.
+Each step has a verification check before the next.
 
 ---
 
@@ -809,8 +886,11 @@ before the next step starts.
   releases. Mitigation: defensive parser, captured fixtures with corrupted
   variants, per-element try/catch, info-level log on unknown keys.
 - **Beszel collection list rules.** Migration snapshot shows `listRule: null`
-  but docs show regular-user querying works. Confirmed during build step 9 on
+  but docs show regular-user querying works. Confirmed during build step 10 on
   a live hub; user-assignment requirement documented in README.
 - **UptimeRobot Free 10 req/min.** Server-side cache TTL ≥ 30s handles one
-  instance comfortably. Documented for users on Free who add multiple instances.
+  instance. Documented for users on Free who add multiple instances.
 - **JWT expiry mid-fetch (Beszel).** Provider re-auths once on 401 and retries.
+- **Browser baseline.** Import maps need Chrome/Edge 89+, Safari 16.4+,
+  Firefox 108+. Older browsers see no app. Acceptable for self-hosted
+  infra-monitoring; documented in README.
