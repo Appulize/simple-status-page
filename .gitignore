@@ -10,6 +10,8 @@ node_modules/
 # Runtime files never committed
 config/settings.json
 cache/state.json
+cache/state.json.lock
+cache/backoff.json
 cache/sessions/
 cache/throttle/
 

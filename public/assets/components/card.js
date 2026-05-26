@@ -44,7 +44,7 @@ export function ItemCard({ item }) {
           <div class="down-banner">
             <${Icon} name="alert" />
             <div>
-              <b>Service unreachable</b>
+              <b>Monitor unreachable</b>
               <small>${item.error || 'Health probe failed.'}</small>
             </div>
           </div>

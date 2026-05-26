@@ -23,9 +23,15 @@ function severitySummary(items) {
 }
 
 function heroHeadline(s) {
-  if (s.down > 0)     return { tone: 'down', text: html`${s.down} service${s.down > 1 ? 's' : ''} <em>are down.</em>` };
-  if (s.degraded > 0) return { tone: 'warn', text: html`${s.degraded} service${s.degraded > 1 ? 's' : ''} <em>are degraded.</em>` };
-  return { tone: 'ok', text: html`All services <em>operational.</em>` };
+  if (s.down > 0) {
+    const plural = s.down !== 1;
+    return { tone: 'down', text: html`${s.down} monitor${plural ? 's' : ''} <em>${plural ? 'are' : 'is'} down.</em>` };
+  }
+  if (s.degraded > 0) {
+    const plural = s.degraded !== 1;
+    return { tone: 'warn', text: html`${s.degraded} monitor${plural ? 's' : ''} <em>${plural ? 'are' : 'is'} degraded.</em>` };
+  }
+  return { tone: 'ok', text: html`All monitors <em>operational.</em>` };
 }
 
 function Countdown({ seconds }) {
@@ -44,11 +50,21 @@ function resolveTheme(t) {
 }
 
 function App() {
-  const [prefs, setPref] = usePrefs();
   const [overlay, setOverlay] = useState(null);
   const [data, setData] = useState(null);   // null = loading, false = error
   const [etag, setEtag] = useState('');
   const [auth, setAuth] = useState({ authenticated: false, firstRun: false, csrfToken: '' });
+  const [serverDefaults, setServerDefaults] = useState(null);
+
+  const [prefs, setPref] = usePrefs(serverDefaults, auth.authenticated, auth.csrfToken);
+
+  // Fetch server-side appearance defaults
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(json => setServerDefaults({ ...(json.appearance || {}), refreshInterval: json.refreshIntervalSec }))
+      .catch(() => {});
+  }, [auth.authenticated]); // re-fetch after login so admin sees fresh defaults
 
   // Check auth state on mount; show onboard overlay if first-run
   useEffect(() => {
@@ -61,9 +77,11 @@ function App() {
       .catch(() => {});
   }, []);
 
-  // Fetch /api/state; re-fetch on interval
+  // Fetch /api/state; re-fetch on interval. When the response is stale,
+  // schedule a quick follow-up so the background regen's fresh data is
+  // picked up without waiting for the next normal poll.
   useEffect(() => {
-    let timer;
+    let intervalTimer, quickTimer;
     async function fetchState() {
       try {
         const headers = etag ? { 'If-None-Match': etag } : {};
@@ -72,15 +90,20 @@ function App() {
         if (!res.ok) { setData(false); return; }
         const e = res.headers.get('ETag') || '';
         if (e) setEtag(e);
-        setData(await res.json());
+        const json = await res.json();
+        setData(json);
+        if (json?.meta?.freshness === 'stale') {
+          clearTimeout(quickTimer);
+          quickTimer = setTimeout(fetchState, 2000);
+        }
       } catch {
         if (data === null) setData(false);
       }
     }
     fetchState();
     const interval = Math.max(5000, (prefs.refreshInterval || 30) * 1000);
-    timer = setInterval(fetchState, interval);
-    return () => clearInterval(timer);
+    intervalTimer = setInterval(fetchState, interval);
+    return () => { clearInterval(intervalTimer); clearTimeout(quickTimer); };
   }, [prefs.refreshInterval]);
 
   // ESC closes overlay (but not the onboard overlay — must complete setup)
@@ -107,7 +130,12 @@ function App() {
   const meta  = data?.meta  ?? {};
   const s = useMemo(() => severitySummary(items), [items]);
   const headline = heroHeadline(s);
-  const isStale  = meta.freshness === 'stale';
+  // Only flag as visibly stale when the cache age has exceeded the refresh
+  // interval — short windows of staleness are part of normal stale-while-
+  // revalidate operation and shouldn't pop a banner.
+  const refreshSec = prefs.refreshInterval || 30;
+  const ageSec     = meta.staleSince ? Math.floor(Date.now() / 1000) - meta.staleSince : 0;
+  const isStale    = meta.freshness === 'stale' && ageSec > refreshSec;
 
   const close = () => setOverlay(null);
 
@@ -152,7 +180,7 @@ function App() {
         </div>
       </header>
 
-      <section class="hero" data-incident=${s.down > 0 ? 'true' : 'false'}>
+      <section class="hero" data-incident=${(s.down > 0 || s.degraded > 0) ? 'true' : 'false'}>
         <div class="hero-eyebrow" data-state=${headline.tone}>
           <span class="pulse" />
           <span>${
@@ -203,7 +231,7 @@ function App() {
       `}
 
       <div class="section-h">
-        <h2>Services</h2>
+        <h2>Monitors</h2>
         <small>${items.length} items · refreshes every ${prefs.refreshInterval || 30}s</small>
       </div>
 
@@ -225,7 +253,7 @@ function App() {
       </footer>
 
       ${overlay === 'settings' && html`
-        <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close} />`}
+        <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close} authenticated=${auth.authenticated} />`}
       ${overlay === 'login'    && html`<${LoginModal}     onClose=${close} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'onboard'  && html`<${OnboardOverlay} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'about'    && html`<${AboutModal}     onClose=${close} itemCount=${items.length} />`}

@@ -532,6 +532,15 @@ a { color: inherit; text-decoration: none; }
   z-index: 50;
   animation: scrim-in 200ms ease;
 }
+/* Settings drawer uses a transparent scrim so appearance changes preview live
+   on the page behind. Still catches clicks for outside-to-close. The double-
+   class selector beats the dark-theme .scrim override on specificity. */
+.scrim.scrim--clear,
+:root[data-theme="dark"] .scrim.scrim--clear {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 @keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
 :root[data-theme="dark"] .scrim { background: color-mix(in oklab, #000, transparent 20%); }
 
@@ -739,34 +748,15 @@ a { color: inherit; text-decoration: none; }
 :root[data-mode="simple"] .hero[data-incident="false"] .hero-headline { display: none; }
 :root[data-mode="simple"] .hero[data-incident="false"] { padding-bottom: 0; }
 
-/* Simple mode: cards are color-tinted so health reads at a glance.
-   Detailed mode stays neutral (only the left-stripe marks severity). */
-:root[data-mode="simple"] .card[data-severity="ok"] {
-  background: color-mix(in oklab, var(--ok-soft), var(--paper) 55%);
-  border-color: color-mix(in oklab, var(--ok), transparent 60%);
-}
+/* Simple mode: matches the existing pill design (used by degraded/down) but
+   also shows the OK left-stripe so healthy cards read as actively green.
+   In detailed mode the OK stripe stays hidden to keep the layout calm. */
 :root[data-mode="simple"] .card[data-severity="ok"]::before {
-  background: var(--ok); opacity: 1;
+  background: linear-gradient(180deg, var(--ok), transparent 80%);
+  opacity: .85;
 }
-:root[data-mode="simple"] .card[data-severity="ok"] .card-title h3 { color: var(--ok-ink); }
-
-:root[data-mode="simple"] .card[data-severity="degraded"] {
-  background: color-mix(in oklab, var(--warn-soft), var(--paper) 55%);
-  border-color: color-mix(in oklab, var(--warn), transparent 55%);
-}
-:root[data-mode="simple"] .card[data-severity="degraded"] .card-title h3 { color: var(--warn-ink); }
-
-:root[data-mode="simple"] .card[data-severity="down"] {
-  background: color-mix(in oklab, var(--down-soft), var(--paper) 55%);
-  border-color: color-mix(in oklab, var(--down), transparent 50%);
-}
-:root[data-mode="simple"] .card[data-severity="down"] .card-title h3 { color: var(--down-ink); }
-
-:root[data-mode="simple"] .card[data-state="paused"],
-:root[data-mode="simple"] .card[data-state="maintenance"],
-:root[data-mode="simple"] .card[data-state="unknown"] {
-  background: color-mix(in oklab, var(--paused-soft), var(--paper) 55%);
-  border-color: color-mix(in oklab, var(--paused), transparent 60%);
+:root[data-mode="simple"] .card[data-severity="ok"] .card-title h3 {
+  color: var(--ok-ink);
 }
 
 :root[data-sparklines="false"] .spark { display: none; }

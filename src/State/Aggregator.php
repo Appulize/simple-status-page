@@ -35,13 +35,24 @@ class Aggregator
         $refresh  = Safe::int(Safe::get($settings, 'ui.refreshIntervalSec'), 30);
         $ttl      = Cache::ttlFor($refresh);
 
-        // 1. Cache hit
+        // 1. Fresh cache → return immediately.
         $fresh = $this->cache->get($ttl);
         if ($fresh !== null) {
             return $fresh;
         }
 
-        // 2. Stampede prevention: try to acquire the regeneration lock without blocking.
+        // 2. Stale cache exists → stale-while-revalidate. Return stale instantly,
+        //    kick off a background regen so the next request gets fresh data.
+        $stale = $this->cache->getStale();
+        if ($stale !== null) {
+            $this->spawnBackgroundRegen();
+            $stale['meta']['freshness']  = 'stale';
+            $stale['meta']['staleSince'] = $this->cache->cachedAt();
+            return $stale;
+        }
+
+        // 3. No cache at all (first hit ever, or it was wiped) — block this one
+        //    request to seed the cache. Use the lock for stampede prevention.
         $lockDir = dirname($this->lockPath);
         if (!is_dir($lockDir)) {
             @mkdir($lockDir, 0700, true);
@@ -52,32 +63,12 @@ class Aggregator
             $haveLock = flock($lockFp, LOCK_EX | LOCK_NB);
         }
 
-        if (!$haveLock) {
-            if ($lockFp !== false) {
-                fclose($lockFp);
-            }
-            $stale = $this->cache->getStale();
-            if ($stale !== null) {
-                $stale['meta']['freshness']  = 'stale';
-                $stale['meta']['staleSince'] = $this->cache->cachedAt();
-                return $stale;
-            }
-            // No previous cache at all → fall through and regenerate without the lock; a second
-            // worker will just produce a redundant payload, which is acceptable on first hit.
-        }
-
         try {
             $payload = $this->regenerate($settings);
             $this->cache->set($payload);
             return $payload;
         } catch (\Throwable $e) {
             Log::error('Aggregator: regeneration failed entirely', ['error' => $e->getMessage()]);
-            $stale = $this->cache->getStale();
-            if ($stale !== null) {
-                $stale['meta']['freshness']  = 'stale';
-                $stale['meta']['staleSince'] = $this->cache->cachedAt();
-                return $stale;
-            }
             return $this->emptyPayload(true);
         } finally {
             if ($lockFp !== false) {
@@ -87,6 +78,59 @@ class Aggregator
                 fclose($lockFp);
             }
         }
+    }
+
+    /**
+     * Force-regenerate the cache synchronously, holding the lock to prevent
+     * stampedes. Called from the bin/regen_state.php background worker.
+     */
+    public function regenerateNow(): void
+    {
+        $lockDir = dirname($this->lockPath);
+        if (!is_dir($lockDir)) {
+            @mkdir($lockDir, 0700, true);
+        }
+        $lockFp = @fopen($this->lockPath, 'c');
+        if ($lockFp === false) {
+            return;
+        }
+        // Block briefly — if another regen is mid-flight, let it finish and we exit.
+        if (!flock($lockFp, LOCK_EX | LOCK_NB)) {
+            fclose($lockFp);
+            return;
+        }
+        try {
+            $payload = $this->regenerate(Store::read());
+            $this->cache->set($payload);
+        } catch (\Throwable $e) {
+            Log::error('Aggregator: background regen failed', ['error' => $e->getMessage()]);
+        } finally {
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
+        }
+    }
+
+    private function spawnBackgroundRegen(): void
+    {
+        // Probe the lock — if already held, a regen is in flight; nothing to do.
+        $lockFp = @fopen($this->lockPath, 'c');
+        if ($lockFp === false) {
+            return;
+        }
+        $available = flock($lockFp, LOCK_EX | LOCK_NB);
+        if ($available) {
+            flock($lockFp, LOCK_UN);
+        }
+        fclose($lockFp);
+        if (!$available) {
+            return;
+        }
+
+        // Fork the regen as a detached background process. The worker re-acquires
+        // the lock itself; release here was just to probe availability.
+        $script = escapeshellarg(dirname(__DIR__, 2) . '/bin/regen_state.php');
+        $php    = escapeshellarg(PHP_BINARY);
+        @exec("{$php} {$script} > /dev/null 2>&1 &");
     }
 
     /**

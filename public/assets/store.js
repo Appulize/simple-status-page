@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'htm/preact';
+import { useState, useEffect, useMemo } from 'htm/preact';
 
 const STORAGE_KEY = 'simplestatus.prefs.v1';
 
@@ -14,18 +14,22 @@ const DEFAULTS = {
   refreshInterval: 30,
 };
 
-function readPrefs() {
+// Keys persisted server-side as admin defaults (POST /api/appearance).
+// refreshInterval stays local-only — it's a per-viewer concern, not a default.
+const SERVER_KEYS = ['theme', 'accent', 'density', 'cardstyle', 'mark', 'mode', 'sparklines', 'summaryBar'];
+
+function readLocal() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
+    return raw ? JSON.parse(raw) : {};
   } catch {
-    return { ...DEFAULTS };
+    return {};
   }
 }
 
-function writePrefs(prefs) {
+function writeLocal(local) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
   } catch { /* quota exceeded — ignore */ }
 }
 
@@ -45,14 +49,41 @@ export function applyPrefs(prefs) {
   root.setAttribute('data-sparklines', String(!!prefs.sparklines));
 }
 
-export function usePrefs() {
-  const [prefs, setPrefsState] = useState(readPrefs);
+/**
+ * @param {object} serverDefaults  Appearance object from /api/config.appearance + refreshIntervalSec.
+ * @param {boolean} authenticated  Admin session active?
+ * @param {string} csrfToken       Required for POST /api/appearance.
+ */
+export function usePrefs(serverDefaults, authenticated, csrfToken) {
+  // Local overrides — for unauthenticated viewers.
+  const [local, setLocal] = useState(readLocal);
+  // Mirror of server defaults so admin edits are reflected without a re-fetch.
+  const [server, setServer] = useState(serverDefaults || {});
 
+  // Sync server state when parent supplies a new /api/config payload.
   useEffect(() => {
-    applyPrefs(prefs);
-  }, [prefs]);
+    if (serverDefaults) setServer(serverDefaults);
+  }, [serverDefaults]);
 
-  // Track system dark-mode changes when theme is 'auto'
+  // Resolved prefs:
+  // - server-managed keys (theme/accent/…): canonical defaults when authed,
+  //   layered with localStorage when not.
+  // - non-server keys (e.g. refreshInterval): always overlay localStorage so
+  //   admins still get per-viewer control over their own polling cadence etc.
+  const prefs = useMemo(() => {
+    const base = { ...DEFAULTS, ...server };
+    if (!authenticated) {
+      return { ...base, ...local };
+    }
+    const localNonServer = {};
+    for (const k of Object.keys(local)) {
+      if (!SERVER_KEYS.includes(k)) localNonServer[k] = local[k];
+    }
+    return { ...base, ...localNonServer };
+  }, [server, local, authenticated]);
+
+  useEffect(() => { applyPrefs(prefs); }, [prefs]);
+
   useEffect(() => {
     if (prefs.theme !== 'auto' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -61,10 +92,29 @@ export function usePrefs() {
     return () => mq.removeEventListener('change', onChange);
   }, [prefs.theme]);
 
-  function setPref(key, value) {
-    setPrefsState(prev => {
+  async function setPref(key, value) {
+    // refreshInterval is always local — per-viewer cadence, not a default.
+    if (authenticated && SERVER_KEYS.includes(key)) {
+      // Optimistic: update server mirror immediately, POST in the background.
+      setServer(prev => ({ ...prev, [key]: value }));
+      try {
+        const res = await fetch('/api/appearance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ [key]: value }),
+        });
+        if (!res.ok) throw new Error('save failed');
+        const json = await res.json();
+        if (json.ui) setServer(prev => ({ ...prev, ...json.ui }));
+      } catch {
+        // Revert on failure.
+        setServer(prev => ({ ...prev, [key]: server[key] }));
+      }
+      return;
+    }
+    setLocal(prev => {
       const next = { ...prev, [key]: value };
-      writePrefs(next);
+      writeLocal(next);
       return next;
     });
   }

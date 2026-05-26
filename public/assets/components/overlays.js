@@ -47,11 +47,17 @@ function SettingRow({ label, hint, children }) {
 }
 
 /* ── Settings drawer ── */
-export function SettingsDrawer({ prefs, setPref, onClose }) {
+export function SettingsDrawer({ prefs, setPref, onClose, authenticated }) {
   const [tab, setTab] = useState('appearance');
+  // Scrim stays blurred until the user actively changes an appearance setting,
+  // then clears so the live preview is visible. Switching tabs re-blurs.
+  const [previewing, setPreviewing] = useState(false);
+  const switchTab = (t) => { setTab(t); setPreviewing(false); };
+  const previewSetPref = (k, v) => { setPreviewing(true); setPref(k, v); };
+  const scrimClear = tab === 'appearance' && previewing;
 
   return html`
-    <div class="scrim" onClick=${onClose} />
+    <div class=${'scrim' + (scrimClear ? ' scrim--clear' : '')} onClick=${onClose} />
     <aside class="drawer" role="dialog" aria-label="Settings">
         <div class="drawer-head">
           <h2>Settings</h2>
@@ -60,11 +66,11 @@ export function SettingsDrawer({ prefs, setPref, onClose }) {
         <div class="drawer-tabs">
           ${['appearance', 'catalog', 'order', 'auth'].map(t => html`
             <button key=${t} class="drawer-tab" data-active=${tab === t}
-                    onClick=${() => setTab(t)}>${t === 'order' ? 'Display order' : t}</button>
+                    onClick=${() => switchTab(t)}>${t === 'order' ? 'Display order' : t}</button>
           `)}
         </div>
         <div class="drawer-body">
-          ${tab === 'appearance' && html`<${AppearanceTab} prefs=${prefs} setPref=${setPref} />`}
+          ${tab === 'appearance' && html`<${AppearanceTab} prefs=${prefs} setPref=${previewSetPref} authenticated=${authenticated} />`}
           ${tab === 'catalog'    && html`<${CatalogTab} />`}
           ${tab === 'order'      && html`<${OrderTab} />`}
           ${tab === 'auth'       && html`<${AuthTab} />`}
@@ -73,9 +79,16 @@ export function SettingsDrawer({ prefs, setPref, onClose }) {
   `;
 }
 
-function AppearanceTab({ prefs, setPref }) {
+function AppearanceTab({ prefs, setPref, authenticated }) {
+  function resetLocal() {
+    try { localStorage.removeItem('simplestatus.prefs.v1'); } catch {}
+    location.reload();
+  }
   return html`
     <div class="setting-list">
+      ${authenticated
+        ? html`<p class="drawer-intro">You're editing the public-facing defaults. Changes save to the server immediately.</p>`
+        : html`<p class="drawer-intro">Personal overrides saved in this browser only. Admins set the public defaults after signing in.</p>`}
       <${SettingRow} label="View detail" hint="Compact cards or full element readouts.">
         <${Segmented} value=${prefs.mode} options=${['simple', 'detailed']}
                       onChange=${v => setPref('mode', v)} />
@@ -107,6 +120,22 @@ function AppearanceTab({ prefs, setPref }) {
       <${SettingRow} label="Sparklines" hint="Inline history under gauges and counters.">
         <${Switch} on=${prefs.sparklines} onClick=${() => setPref('sparklines', !prefs.sparklines)} />
       <//>
+      <${SettingRow} label="Refresh interval" hint="How often this browser polls for fresh data. Per-viewer.">
+        <${Segmented} value=${String(prefs.refreshInterval || 30)}
+                      options=${['10', '30', '60', '300']}
+                      onChange=${v => setPref('refreshInterval', Number(v))} />
+      <//>
+      ${!authenticated && html`
+        <div class="setting-row">
+          <div class="setting-row-l">
+            <div class="setting-row-label">Reset to site defaults</div>
+            <div class="setting-row-hint">Clears your personal overrides and falls back to what the admin configured.</div>
+          </div>
+          <div class="setting-row-r">
+            <button class="btn btn-ghost" onClick=${resetLocal}>Reset</button>
+          </div>
+        </div>
+      `}
     </div>
   `;
 }

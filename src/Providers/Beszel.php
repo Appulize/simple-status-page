@@ -169,17 +169,27 @@ class Beszel implements Provider
             }
         }
 
+        // Ensure auth token is in hand before issuing parallel requests.
+        if ($this->token === null) {
+            try {
+                $this->token = $this->authenticate($config);
+            } catch (\Throwable $e) {
+                Log::warn('Beszel: auth failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Fan out per-parent stats + details calls in parallel.
+        $parents = array_keys($byParent);
+        $multi = $this->fetchParentsBatch($config, $parents, $sysById);
+
         $items = [];
         foreach ($byParent as $parent => $ids) {
-            $sys = $sysById[$parent] ?? null;
-            try {
-                $stats   = $sys !== null ? $this->latestStats($config, $parent) : [];
-                $details = $sys !== null ? $this->systemDetails($config, $parent) : [];
-                $history = $sys !== null ? $this->statsHistory($config, $parent) : [];
-            } catch (\Throwable $e) {
-                Log::warn('Beszel: per-system fetch failed', ['system' => $parent, 'error' => $e->getMessage()]);
-                $stats = $details = $history = [];
-                $sys = $sys ?? ['id' => $parent, 'name' => $parent, 'status' => 'pending'];
+            $sys     = $sysById[$parent] ?? null;
+            $stats   = $multi[$parent]['stats']   ?? [];
+            $details = $multi[$parent]['details'] ?? [];
+            $history = $multi[$parent]['history'] ?? [];
+            if ($sys === null) {
+                $sys = ['id' => $parent, 'name' => $parent, 'status' => 'pending'];
             }
 
             foreach ($ids as $id) {
@@ -270,6 +280,100 @@ class Beszel implements Provider
         }
         /** @var array<string, string> $headers */
         return $this->http->request($method, $url, $headers, $body);
+    }
+
+    /**
+     * Issue many requests in parallel, honoring fakeRoutes for tests.
+     *
+     * @param array<int|string, array{method: string, url: string, headers?: array<string, string>}> $requests
+     * @return array<int|string, array{body: string, status: int, headers: array<string, string>}>
+     */
+    private function httpMulti(array $requests): array
+    {
+        if ($this->fakeRoutes !== null) {
+            $out = [];
+            foreach ($requests as $k => $req) {
+                $out[$k] = $this->httpRequest($req['method'], $req['url'], $req['headers'] ?? []);
+            }
+            return $out;
+        }
+        return $this->http->requestMulti($requests);
+    }
+
+    /**
+     * Fetch stats history + details for many parents in a single curl_multi batch.
+     *
+     * @param array<string, array<string, mixed>> $sysById
+     * @return array<string, array{stats: array<string, mixed>, details: array<string, mixed>, history: array<int, mixed>}>
+     */
+    private function fetchParentsBatch(array $config, array $parents, array $sysById): array
+    {
+        $base = rtrim(Safe::str(Safe::get($config, 'url')), '/');
+        $reqs = [];
+        foreach ($parents as $parent) {
+            if (!isset($sysById[$parent])) {
+                continue;
+            }
+            $statsFilter   = "system='" . $this->escapePbValue($parent) . "' && type='1m'";
+            $detailsFilter = "system='" . $this->escapePbValue($parent) . "'";
+            $reqs['stats:' . $parent] = [
+                'method'  => 'GET',
+                'url'     => $base . '/api/collections/system_stats/records?filter=' . rawurlencode($statsFilter) . '&sort=-created&perPage=60',
+                'headers' => ['Authorization' => (string) $this->token],
+            ];
+            $reqs['details:' . $parent] = [
+                'method'  => 'GET',
+                'url'     => $base . '/api/collections/system_details/records?filter=' . rawurlencode($detailsFilter) . '&perPage=1',
+                'headers' => ['Authorization' => (string) $this->token],
+            ];
+        }
+        if ($reqs === []) {
+            return [];
+        }
+
+        $responses = $this->httpMulti($reqs);
+
+        $out = [];
+        foreach ($parents as $parent) {
+            $sr = $responses['stats:'   . $parent] ?? null;
+            $dr = $responses['details:' . $parent] ?? null;
+
+            $history = [];
+            $stats   = [];
+            if ($sr !== null && $sr['status'] >= 200 && $sr['status'] < 300) {
+                try {
+                    $j       = $this->decodeJson($sr['body'], 'stats:' . $parent);
+                    $history = Safe::arr(Safe::get($j, 'items'));
+                    $latest  = $history[0] ?? [];
+                    if (is_array($latest)) {
+                        $s = $latest['stats'] ?? null;
+                        $stats = is_array($s) ? $s : [];
+                    }
+                } catch (\Throwable $e) {
+                    Log::warn('Beszel: stats decode failed', ['system' => $parent, 'error' => $e->getMessage()]);
+                }
+            } elseif ($sr !== null) {
+                Log::warn('Beszel: stats HTTP error', ['system' => $parent, 'status' => $sr['status']]);
+            }
+
+            $details = [];
+            if ($dr !== null && $dr['status'] >= 200 && $dr['status'] < 300) {
+                try {
+                    $j     = $this->decodeJson($dr['body'], 'details:' . $parent);
+                    $items = Safe::arr(Safe::get($j, 'items'));
+                    if (is_array($items[0] ?? null)) {
+                        $details = $items[0];
+                    }
+                } catch (\Throwable $e) {
+                    Log::warn('Beszel: details decode failed', ['system' => $parent, 'error' => $e->getMessage()]);
+                }
+            } elseif ($dr !== null) {
+                Log::warn('Beszel: details HTTP error', ['system' => $parent, 'status' => $dr['status']]);
+            }
+
+            $out[$parent] = ['stats' => $stats, 'details' => $details, 'history' => $history];
+        }
+        return $out;
     }
 
     private function decodeJson(string $body, string $label): array
