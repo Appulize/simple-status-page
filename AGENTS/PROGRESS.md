@@ -211,3 +211,37 @@ Verified live: 12 UR monitors → 11 `ok` (status=2), 1 `down` (status=9), 1 pau
 
 ---
 
+
+## 2026-05-26 — Pre-Sprint-6 firefighting + perf
+
+Goal was Sprint 6 (Settings/Catalog APIs), but the user opened the page and nothing rendered past "Connecting…". Diverted to fix the root cause and the issues a working page surfaced.
+
+**Bugs fixed:**
+- Fragment syntax: `<>...</>` in `overlays.js` produced `createElement("")` in this htm-preact build (no Fragment translation). The throw happened inside Preact's microtask-scheduled render, surfacing as an unhandled Promise rejection. Replaced wrappers with plain top-level siblings — htm returns an array, Preact renders arrays from a component fine. (Committed earlier in 2bd2483.)
+- Noscript inline-style → CSP `style-src` violation. Moved to `.noscript-msg` class. (2bd2483.)
+- `fmtRelative(0)` rendering "20599d ago"; now returns "—" for falsy/non-positive timestamps. (2bd2483.)
+- Beszel `discover()` returning all child nodes (interfaces, disks) as `visible: true` by default — added child-detection in `bin/seed_discovery.php` so children default hidden. Existing overrides preserved by id-merge; previously-discovered items that disappear are kept around as orphans so the Aggregator can flag them "missing from upstream" until an admin removes them. (2bd2483.)
+- Aggregator caches the upstream `label` into `displayName` on first sight so removed-upstream items still render with a friendly name. (2bd2483.)
+
+**Performance — committed in 892f6f4:**
+- Stale-while-revalidate in `Aggregator::get()`: stale entries return instantly; `spawnBackgroundRegen()` forks `bin/regen_state.php` to refresh for the next request. First-paint after TTL expiry drops from ~5s to <100ms.
+- `HttpClient::requestMulti()` (curl_multi). Beszel `fetch()` fans out per-system stats+details in parallel, and the redundant `statsHistory` call is removed (latestStats now derives from the same payload).
+
+**Live appearance preview — committed in 892f6f4:**
+- New `POST /api/appearance` (auth + CSRF, whitelist-validated). Admins edit canonical public-facing defaults; the `ui` block in settings.json is the source of truth.
+- `usePrefs` now takes `(serverDefaults, authenticated, csrfToken)`. Server-managed keys (theme/accent/density/cardstyle/mark/mode/sparklines/summaryBar) are layered with per-viewer localStorage overrides for unauth viewers, or used canonically for authed admins. Non-server keys (e.g. refreshInterval) always overlay localStorage so admins still get per-viewer control of their own polling cadence.
+- Reset-to-defaults button in Appearance tab for unauth viewers; contextual intro text per auth state.
+- Refresh-interval segmented control (10/30/60/300s) added.
+- Stale banner suppressed during normal SWR operation (age < refresh interval); a 2s quick re-fetch is scheduled when the response is stale so the bg-regen result appears without waiting for the next poll.
+- Settings drawer scrim clears only when an Appearance setting is actively being previewed; re-blurs on tab switch. Dark-theme override sorted by selector specificity (`scrim.scrim--clear`).
+
+**UX polish (892f6f4):**
+- Hero `data-incident` flips true for degraded as well as down, so the headline reads in simple mode for degraded states.
+- Pluralization fixed: "1 monitor is down" vs "N monitors are down".
+- "service" → "monitor" everywhere user-visible (hero headline, section heading, card error banner).
+
+**Tests:** 114/114 pass after all changes. `bash tests/css-class-check.sh` + `bash tests/inline-style-check.sh` clean.
+
+**Sprint 6 still pending.** None of the planned Sprint 6 endpoints (`GET/POST /api/settings`, `POST /api/discover`, `POST /api/password`, `/api/providers`, token rotate, `/api/health` version/uptime) shipped yet, nor the Catalog/Order/Auth tab wiring. The Appearance work landed early as a vertical slice; Sprint 6's `POST /api/settings` will eventually subsume `/api/appearance`.
+
+---
