@@ -146,3 +146,68 @@
 
 ---
 
+## 2026-05-26 — Step 5: Real data pipeline (provider interface, state infra, providers, aggregator)
+
+**Deliverables shipped:**
+
+`src/Providers/Provider.php` — interface per PLAN §3. id/name/version/configSchema/validate/discover/fetch. Docblocks document the discovery node and normalized item shape.
+
+`src/Providers/Registry.php` — static map `uptimerobot → UptimeRobot::class`, `beszel → Beszel::class`. `get(id)` throws `InvalidArgumentException` on unknown.
+
+`src/Providers/README.md` — provider contract, stable-key rule, element vocabulary, mandatory `Safe::*` defensive parsing, fixture requirement (happy + corrupt).
+
+`src/State/HttpClient.php` — thin cURL wrapper. Hardened per PLAN §9: 5s connect / 15s total, HTTP+HTTPS only, TLS verify on, no redirect-following. Throws `RuntimeException` on cURL failure. Returns `{body, status, headers}`.
+
+`src/State/Cache.php` — file cache at `cache/state.json` with `schemaVersion: 1`, atomic write (temp + rename), `get(ttl) / getStale() / cachedAt() / set()`. TTL formula `max(5, min(10, refreshIntervalSec / 2))` exposed as `Cache::ttlFor()`.
+
+`src/State/Backoff.php` — per-instance exponential backoff persisted to `cache/backoff.json`. Initial 30s, doubling, cap 300s. `recordSuccess()` clears the entry. Best-effort I/O, loss tolerable.
+
+`src/State/Evaluator.php` — pure function. Defaults table (cpu 80/95, mem 80/95, disk 85/95, response_time 1000/5000, uptime 99/95). Per-element severity tagged (`warn|crit|null`). Worst-of across elements. Provider hint `_providerSeverityHint` lets Beszel mark a host as `down` even if all metrics look healthy. `state ≠ active` forces `severity = ok` and wipes per-element tints.
+
+`src/Providers/UptimeRobot.php` — POST `https://api.uptimerobot.com/v2/getMonitors` with full param set (`response_times`, `custom_uptime_ratios=1-7-30-90`, `logs`). Pagination via `offset`. Status map: 2→active/ok, 8→degraded, 9→down, 0→paused, 1/default→unknown. Elements: counter `response_time` (avg + history, oldest-left), uptime windows (24h/7d/30d/90d), events from logs, link. HttpClient injected via constructor for test isolation.
+
+`src/Providers/Beszel.php` — PocketBase REST. Auth flow: `POST /api/collections/users/auth-with-password` → cache token; on 401 re-auth once and retry. List systems (`perPage=200`), per-system `system_stats` (filter `system='X' && type='1m'`, `sort=-created`, `perPage=60`), per-system `system_details`. Stats blob parsed fully defensively against the captured `j2dcfdrz1h8tjz5` fixture: `cpu`, `mp` (mem%), `dp` (disk%), `b` ([rx, tx] throughput), `ni.{name}` ([rx_now, tx_now, rx_total, tx_total]). Sub-items: NICs (`{sys}::nic::{name}`) and extra filesystems (`{sys}::disk::{mount}`, defensive — none present in current fixture). Status map: up→active, down→active+hint, paused→paused, pending→unknown.
+
+`src/State/Aggregator.php` — orchestrator. Cache-first; non-blocking `flock` on `cache/state.json.lock` for stampede prevention; serves stale cache when lock contended or regeneration throws. Per-instance try/catch: backoff cooldown skips, fetch failures synthesize unknown items + record failure. Items not returned by the provider (deleted upstream) get a placeholder. Display order applied cross-instance from `settings.displayOrder`. Evaluator runs last. ETag computed from items+instanceErrors and **stored inside `meta.etag`** so cached reads emit a stable identifier (a previous attempt regenerated the hash per request and mis-matched because `(object) []` vs `[]` encoding diverged across the cache round-trip).
+
+`public/api/state.php` — replaces the stub. Calls `Aggregator::get()`, emits `meta.etag` as the `ETag` header, returns 304 on `If-None-Match` match. `Cache-Control: private, no-cache`.
+
+`bin/seed_discovery.php` — one-off helper used during Sprint 5 verification: runs `discover()` on every configured instance and writes the resulting items list to `settings.json`. Sprint 6 replaces this with the proper `/api/discover` endpoint + UI.
+
+`tests/EvaluatorTest.php` — 17 assertions: thresholds per kind, worst-of mixing warn+crit, paused/unknown override, uptime windows, provider hint.
+
+`tests/UptimeRobotTest.php` — happy + corrupt fixtures (`tests/fixtures/uptimerobot/{monitors,monitors_corrupt}.json`). 14 assertions. Corrupt fixture covers: missing `response_times`, non-numeric `status`, missing `custom_uptime_ratio`, non-array `logs`, minimal monitor with only `id+friendly_name`.
+
+`tests/BeszelTest.php` — happy + corrupt fixtures (`tests/fixtures/beszel/{systems,system_stats,system_stats_corrupt,system_details}.json`). 30 assertions. Test stubs HTTP via `Beszel::$fakeRoutes` (URL-fragment lookup). Corrupt fixture covers: missing `cpu` key, mangled `b` (string instead of array), mangled `ni.eth0` value, unknown top-level keys ignored, mid-history broken record.
+
+**Bug fixed during sprint:**
+- `tests/BeszelTest.php` shadowed the test runner's `$failed` global with a local boolean, breaking the failure counter even when all assertions passed. Renamed local to `$threw`.
+
+**Live verification (vs. real UptimeRobot + Beszel):**
+- `php bin/seed_discovery.php` → 12 UR monitors + 38 Beszel nodes (9 hosts + NICs).
+- `curl /api/state` → HTTP 200, 50 items, freshness=fresh, ETag set.
+- Second `curl /api/state -H "If-None-Match: <etag>"` → HTTP 304, empty body.
+- `Cache-Control: private, no-cache` present on both responses.
+- Backoff verified by killing UR during a request (timeout) → `cache/backoff.json` populated with the failing instance id and `nextAttemptAt`.
+- 113/113 tests pass.
+
+**Beszel access (PLAN §13.8 resolved):**
+The Beszel hub now runs with the `SHARE_ALL_SYSTEMS` env var set, so any regular readonly user can list every system without per-record assignment. README to recommend `SHARE_ALL_SYSTEMS=true` in Sprint 6; per-user assignment remains an option for fine-grained access.
+
+**Evaluator behaviour correction (UR severity):**
+URL monitors must reflect *current* status, not historical uptime ratios — a monitor that's up right now shouldn't read "down" because of a 30-day-old outage. Fixed in two places:
+- `Evaluator::evaluateUptime` now requires the element to carry explicit `thresholds.warn` / `thresholds.crit`. Without thresholds, uptime windows display but never drive severity.
+- `UptimeRobot::mapStatus` now returns a `_providerSeverityHint` per status: 9 → down, 8 → degraded, 2/0/1 → null. The hint flows through the evaluator (already wired for Beszel) and pushes the card severity directly.
+
+Verified live: 12 UR monitors → 11 `ok` (status=2), 1 `down` (status=9), 1 paused (status=0 → state=paused, severity ok). No false-positive downs from low 7d/30d ratios.
+
+`tests/EvaluatorTest.php` updated: covers both the no-thresholds (severity untouched) and the opt-in (thresholds carried → worst-of windows) paths. 114/114 tests pass.
+
+**Not in this sprint (per the sprint scope):**
+- `GET/POST /api/settings`, `POST /api/discover`, Settings drawer wiring — Sprint 6.
+- `/api/health` version/uptime fields — bundle into Sprint 6.
+
+**Next: Step 6 — Settings management API + Discovery API + Catalog/DisplayOrder/Auth tab wiring.**
+
+---
+

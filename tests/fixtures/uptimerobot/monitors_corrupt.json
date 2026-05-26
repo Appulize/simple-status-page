@@ -1,0 +1,2477 @@
+{
+    "stat": "ok",
+    "pagination": {
+        "offset": 0,
+        "limit": 50,
+        "total": 12
+    },
+    "monitors": [
+        {
+            "id": 787968619,
+            "friendly_name": "A320 Releases API",
+            "url": "https:\/\/a320.appulize.com\/api\/v1\/releases\/current",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "databaseMD5",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1619465505,
+            "logs": [
+                {
+                    "type": 2,
+                    "datetime": 1779707076,
+                    "duration": 111856,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779706422,
+                    "duration": 654,
+                    "reason": {
+                        "code": "888888",
+                        "detail": "Keyword Not Found"
+                    }
+                },
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628853,
+                    "duration": 77569,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779597425,
+                    "duration": 31428,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1778906432,
+                    "duration": 690993,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1778906128,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777524089,
+                    "duration": 1382039,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777523784,
+                    "duration": 305,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-93.916-98.688-99.571",
+            "custom_down_durations": "0-32082-32996-32996",
+            "average_response_time": "166.583",
+            "responsetime_length": 60
+        },
+        {
+            "id": 787968622,
+            "friendly_name": "B737NG Releases API",
+            "url": "https:\/\/b737ng.appulize.com\/api\/v1\/releases\/current",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "databaseMD5",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": "nope",
+            "create_datetime": 1619465529,
+            "logs": [
+                {
+                    "type": 2,
+                    "datetime": 1779707077,
+                    "duration": 111854,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779706422,
+                    "duration": 655,
+                    "reason": {
+                        "code": "888888",
+                        "detail": "Keyword Not Found"
+                    }
+                },
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628852,
+                    "duration": 77570,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779597299,
+                    "duration": 31553,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777351204,
+                    "duration": 2246095,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777350901,
+                    "duration": 303,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1770439175,
+                    "duration": 6911726,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1770438862,
+                    "duration": 313,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-93.892-98.707-99.578",
+            "custom_down_durations": "0-32208-32511-32511",
+            "response_times": [
+                {
+                    "datetime": 1779751500,
+                    "value": 111
+                },
+                {
+                    "datetime": 1779750900,
+                    "value": 110
+                },
+                {
+                    "datetime": 1779750300,
+                    "value": 150
+                },
+                {
+                    "datetime": 1779749700,
+                    "value": 144
+                },
+                {
+                    "datetime": 1779749100,
+                    "value": 106
+                },
+                {
+                    "datetime": 1779748500,
+                    "value": 97
+                },
+                {
+                    "datetime": 1779747900,
+                    "value": 152
+                },
+                {
+                    "datetime": 1779747300,
+                    "value": 141
+                },
+                {
+                    "datetime": 1779746700,
+                    "value": 129
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 150
+                },
+                {
+                    "datetime": 1779745500,
+                    "value": 123
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 125
+                },
+                {
+                    "datetime": 1779744000,
+                    "value": 111
+                },
+                {
+                    "datetime": 1779743100,
+                    "value": 126
+                },
+                {
+                    "datetime": 1779741900,
+                    "value": 134
+                },
+                {
+                    "datetime": 1779741300,
+                    "value": 178
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 125
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 156
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 551
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 125
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 115
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 134
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 146
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 111
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 173
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 275
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 106
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 123
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 133
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 143
+                }
+            ],
+            "average_response_time": "157.800",
+            "responsetime_length": 60
+        },
+        {
+            "id": 776158148,
+            "friendly_name": "CircleToLand API",
+            "url": "http:\/\/cdn.apps.appulize.com\/circletoland\/v2\/norway.json",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "http",
+            "port": "",
+            "interval": 1200,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1467165600,
+            "logs": [
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779626945,
+                    "duration": 191987,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779625618,
+                    "duration": 1327,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779624273,
+                    "duration": 1345,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779618925,
+                    "duration": 5348,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779616247,
+                    "duration": 2678,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779613916,
+                    "duration": 2331,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779611237,
+                    "duration": 2679,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779609909,
+                    "duration": 1328,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_down_durations": "0-10334-10334-10334",
+            "response_times": [
+                {
+                    "datetime": 1779808800,
+                    "value": 107
+                },
+                {
+                    "datetime": 1779806400,
+                    "value": 166
+                },
+                {
+                    "datetime": 1779804000,
+                    "value": 163
+                },
+                {
+                    "datetime": 1779801600,
+                    "value": 127
+                },
+                {
+                    "datetime": 1779799200,
+                    "value": 137
+                },
+                {
+                    "datetime": 1779796500,
+                    "value": 179
+                },
+                {
+                    "datetime": 1779794100,
+                    "value": 127
+                },
+                {
+                    "datetime": 1779791700,
+                    "value": 162
+                },
+                {
+                    "datetime": 1779788100,
+                    "value": 124
+                },
+                {
+                    "datetime": 1779785700,
+                    "value": 139
+                },
+                {
+                    "datetime": 1779783300,
+                    "value": 173
+                },
+                {
+                    "datetime": 1779780900,
+                    "value": 133
+                },
+                {
+                    "datetime": 1779778500,
+                    "value": 98
+                },
+                {
+                    "datetime": 1779776100,
+                    "value": 103
+                },
+                {
+                    "datetime": 1779773700,
+                    "value": 76
+                },
+                {
+                    "datetime": 1779771300,
+                    "value": 105
+                },
+                {
+                    "datetime": 1779768900,
+                    "value": 149
+                },
+                {
+                    "datetime": 1779766500,
+                    "value": 82
+                },
+                {
+                    "datetime": 1779764100,
+                    "value": 116
+                },
+                {
+                    "datetime": 1779761700,
+                    "value": 97
+                },
+                {
+                    "datetime": 1779759300,
+                    "value": 130
+                },
+                {
+                    "datetime": 1779756900,
+                    "value": 100
+                },
+                {
+                    "datetime": 1779754500,
+                    "value": 100
+                },
+                {
+                    "datetime": 1779752100,
+                    "value": 97
+                },
+                {
+                    "datetime": 1779749700,
+                    "value": 111
+                },
+                {
+                    "datetime": 1779747300,
+                    "value": 93
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 95
+                },
+                {
+                    "datetime": 1779738600,
+                    "value": 121
+                },
+                {
+                    "datetime": 1779736200,
+                    "value": 146
+                },
+                {
+                    "datetime": 1779733800,
+                    "value": 120
+                }
+            ],
+            "average_response_time": "126.433",
+            "responsetime_length": 60
+        },
+        {
+            "id": 795144604,
+            "friendly_name": "DCSBIOSKit",
+            "url": "https:\/\/www.dcsbioskit.com",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "Products",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1692892491,
+            "logs": "not-an-array",
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-94.057-98.704-99.577",
+            "custom_down_durations": "0-31336-32586-32586",
+            "response_times": [
+                {
+                    "datetime": 1779751800,
+                    "value": 1199
+                },
+                {
+                    "datetime": 1779751200,
+                    "value": 1023
+                },
+                {
+                    "datetime": 1779750600,
+                    "value": 994
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 962
+                },
+                {
+                    "datetime": 1779749400,
+                    "value": 1015
+                },
+                {
+                    "datetime": 1779748800,
+                    "value": 1762
+                },
+                {
+                    "datetime": 1779748200,
+                    "value": 1020
+                },
+                {
+                    "datetime": 1779747600,
+                    "value": 1128
+                },
+                {
+                    "datetime": 1779747000,
+                    "value": 553
+                },
+                {
+                    "datetime": 1779746400,
+                    "value": 4792
+                },
+                {
+                    "datetime": 1779745800,
+                    "value": 589
+                },
+                {
+                    "datetime": 1779745200,
+                    "value": 1144
+                },
+                {
+                    "datetime": 1779744600,
+                    "value": 518
+                },
+                {
+                    "datetime": 1779744000,
+                    "value": 637
+                },
+                {
+                    "datetime": 1779743400,
+                    "value": 1018
+                },
+                {
+                    "datetime": 1779742200,
+                    "value": 1024
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 509
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 579
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 528
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 562
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 607
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 1256
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 680
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 503
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 623
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 569
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 647
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 3332
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 474
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 705
+                }
+            ],
+            "average_response_time": "942.317",
+            "responsetime_length": 60
+        },
+        {
+            "id": 776805315,
+            "friendly_name": "PPL-Appen Locales API",
+            "url": "https:\/\/ppl.flygteori.appulize.com\/api\/v1\/releases\/locales",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "\"sv\"",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1467165600,
+            "logs": [
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628852,
+                    "duration": 190079,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779597360,
+                    "duration": 31492,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777610444,
+                    "duration": 1986916,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777610139,
+                    "duration": 305,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777351274,
+                    "duration": 258865,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777350969,
+                    "duration": 305,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1764304715,
+                    "duration": 13046254,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1764304409,
+                    "duration": 306,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-94.028-98.723-99.583",
+            "custom_down_durations": "0-31492-32102-32102",
+            "response_times": [
+                {
+                    "datetime": 1779751200,
+                    "value": 50
+                },
+                {
+                    "datetime": 1779750600,
+                    "value": 68
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 102
+                },
+                {
+                    "datetime": 1779749400,
+                    "value": 131
+                },
+                {
+                    "datetime": 1779748800,
+                    "value": 111
+                },
+                {
+                    "datetime": 1779748200,
+                    "value": 84
+                },
+                {
+                    "datetime": 1779747600,
+                    "value": 104
+                },
+                {
+                    "datetime": 1779747000,
+                    "value": 184
+                },
+                {
+                    "datetime": 1779746400,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779745800,
+                    "value": 185
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 103
+                },
+                {
+                    "datetime": 1779744300,
+                    "value": 116
+                },
+                {
+                    "datetime": 1779743700,
+                    "value": 79
+                },
+                {
+                    "datetime": 1779743100,
+                    "value": 107
+                },
+                {
+                    "datetime": 1779742200,
+                    "value": 136
+                },
+                {
+                    "datetime": 1779741300,
+                    "value": 75
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 101
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 120
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 74
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 173
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 118
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 94
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 149
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 90
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 114
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 125
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 81
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 106
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 138
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 117
+                }
+            ],
+            "average_response_time": "114.150",
+            "responsetime_length": 60
+        },
+        {
+            "id": 776805314,
+            "friendly_name": "PPL-Appen Releases API",
+            "url": "https:\/\/ppl.flygteori.appulize.com\/api\/v1\/releases\/current",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "databaseMD5",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1467165600,
+            "logs": [
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628852,
+                    "duration": 190079,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779597460,
+                    "duration": 31392,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777351254,
+                    "duration": 2246206,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777350950,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1770439220,
+                    "duration": 6911730,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1770438916,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1764304718,
+                    "duration": 6134198,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1764304414,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-94.047-98.739-99.588",
+            "custom_down_durations": "0-31392-31696-31696",
+            "response_times": [
+                {
+                    "datetime": 1779751800,
+                    "value": 116
+                },
+                {
+                    "datetime": 1779751200,
+                    "value": 106
+                },
+                {
+                    "datetime": 1779750600,
+                    "value": 102
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 93
+                },
+                {
+                    "datetime": 1779749100,
+                    "value": 142
+                },
+                {
+                    "datetime": 1779748500,
+                    "value": 133
+                },
+                {
+                    "datetime": 1779747900,
+                    "value": 148
+                },
+                {
+                    "datetime": 1779747300,
+                    "value": 96
+                },
+                {
+                    "datetime": 1779746700,
+                    "value": 123
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 114
+                },
+                {
+                    "datetime": 1779745500,
+                    "value": 148
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 112
+                },
+                {
+                    "datetime": 1779744300,
+                    "value": 126
+                },
+                {
+                    "datetime": 1779743700,
+                    "value": 83
+                },
+                {
+                    "datetime": 1779742800,
+                    "value": 57
+                },
+                {
+                    "datetime": 1779741600,
+                    "value": 86
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 135
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 133
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 118
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 116
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 73
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 87
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 157
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 108
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 82
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 121
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 156
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 121
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 148
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 95
+                }
+            ],
+            "average_response_time": "116.900",
+            "responsetime_length": 60
+        },
+        {
+            "id": 778087132,
+            "friendly_name": "PPL-Appen Releases Format",
+            "url": "https:\/\/ppl.flygteori.appulize.com\/api\/v1\/releases\/current",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 1,
+            "keyword_case_type": 0,
+            "keyword_value": "\"id\":\"",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1471771671,
+            "logs": [
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628852,
+                    "duration": 190079,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779628675,
+                    "duration": 177,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779627098,
+                    "duration": 1577,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779626774,
+                    "duration": 324,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779626329,
+                    "duration": 445,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779625671,
+                    "duration": 658,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779624092,
+                    "duration": 1579,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779623435,
+                    "duration": 657,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-98.399-99.664-99.890",
+            "custom_down_durations": "0-8441-8441-8441",
+            "response_times": [
+                {
+                    "datetime": 1779752100,
+                    "value": 124
+                },
+                {
+                    "datetime": 1779751500,
+                    "value": 128
+                },
+                {
+                    "datetime": 1779750900,
+                    "value": 106
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 138
+                },
+                {
+                    "datetime": 1779749400,
+                    "value": 100
+                },
+                {
+                    "datetime": 1779748800,
+                    "value": 112
+                },
+                {
+                    "datetime": 1779748200,
+                    "value": 117
+                },
+                {
+                    "datetime": 1779747600,
+                    "value": 120
+                },
+                {
+                    "datetime": 1779747000,
+                    "value": 126
+                },
+                {
+                    "datetime": 1779746400,
+                    "value": 135
+                },
+                {
+                    "datetime": 1779745800,
+                    "value": 109
+                },
+                {
+                    "datetime": 1779745200,
+                    "value": 78
+                },
+                {
+                    "datetime": 1779744600,
+                    "value": 97
+                },
+                {
+                    "datetime": 1779744000,
+                    "value": 131
+                },
+                {
+                    "datetime": 1779743400,
+                    "value": 117
+                },
+                {
+                    "datetime": 1779742800,
+                    "value": 105
+                },
+                {
+                    "datetime": 1779741600,
+                    "value": 121
+                },
+                {
+                    "datetime": 1779740400,
+                    "value": 77
+                },
+                {
+                    "datetime": 1779739800,
+                    "value": 124
+                },
+                {
+                    "datetime": 1779739200,
+                    "value": 177
+                },
+                {
+                    "datetime": 1779738600,
+                    "value": 135
+                },
+                {
+                    "datetime": 1779738000,
+                    "value": 92
+                },
+                {
+                    "datetime": 1779737400,
+                    "value": 105
+                },
+                {
+                    "datetime": 1779736800,
+                    "value": 105
+                },
+                {
+                    "datetime": 1779736200,
+                    "value": 108
+                },
+                {
+                    "datetime": 1779735600,
+                    "value": 162
+                },
+                {
+                    "datetime": 1779735000,
+                    "value": 110
+                },
+                {
+                    "datetime": 1779734400,
+                    "value": 2135
+                },
+                {
+                    "datetime": 1779733800,
+                    "value": 147
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 68
+                }
+            ],
+            "average_response_time": "154.333",
+            "responsetime_length": 60
+        },
+        {
+            "id": 789977485,
+            "friendly_name": "proxmox.appulize.com",
+            "url": "proxmox.appulize.com",
+            "type": 3,
+            "sub_type": "",
+            "keyword_type": null,
+            "keyword_case_type": null,
+            "keyword_value": "",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 0,
+            "create_datetime": 1638822368,
+            "logs": [
+                {
+                    "type": 99,
+                    "datetime": 1779706442,
+                    "duration": 112489,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779614689,
+                    "duration": 204242,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779613128,
+                    "duration": 1561,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779610884,
+                    "duration": 2244,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779610579,
+                    "duration": 305,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779609889,
+                    "duration": 690,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779609269,
+                    "duration": 620,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1757496344,
+                    "duration": 22112925,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "0.000-0.000-0.000-0.000",
+            "custom_down_durations": "0-0-0-0",
+            "response_times": [],
+            "average_response_time": "0.000"
+        },
+        {
+            "id": 781507840,
+            "friendly_name": "Tracer",
+            "url": "https:\/\/public.swic.name",
+            "type": 1,
+            "sub_type": "",
+            "keyword_type": 1,
+            "keyword_case_type": 0,
+            "keyword_value": "",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1543010330,
+            "logs": [
+                {
+                    "type": 2,
+                    "datetime": 1777754494,
+                    "duration": 2064437,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777753879,
+                    "duration": 615,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777136393,
+                    "duration": 617486,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777132721,
+                    "duration": 3672,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1777132346,
+                    "duration": 375,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1777131123,
+                    "duration": 1223,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1774155347,
+                    "duration": 2975776,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1774155043,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1772647512,
+                    "duration": 1507531,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1772646875,
+                    "duration": 637,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-100.000-99.976-99.913",
+            "custom_down_durations": "0-0-615-6755",
+            "response_times": [
+                {
+                    "datetime": 1779751800,
+                    "value": 363
+                },
+                {
+                    "datetime": 1779751200,
+                    "value": 390
+                },
+                {
+                    "datetime": 1779750600,
+                    "value": 366
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 803
+                },
+                {
+                    "datetime": 1779749400,
+                    "value": 372
+                },
+                {
+                    "datetime": 1779748800,
+                    "value": 367
+                },
+                {
+                    "datetime": 1779747900,
+                    "value": 434
+                },
+                {
+                    "datetime": 1779747300,
+                    "value": 330
+                },
+                {
+                    "datetime": 1779746700,
+                    "value": 412
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 391
+                },
+                {
+                    "datetime": 1779745500,
+                    "value": 310
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 412
+                },
+                {
+                    "datetime": 1779744300,
+                    "value": 387
+                },
+                {
+                    "datetime": 1779743700,
+                    "value": 419
+                },
+                {
+                    "datetime": 1779742500,
+                    "value": 355
+                },
+                {
+                    "datetime": 1779741300,
+                    "value": 457
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 412
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 421
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 405
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 387
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 397
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 357
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 420
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 312
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 385
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 378
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 304
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 356
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 372
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 433
+                }
+            ],
+            "average_response_time": "384.750",
+            "responsetime_length": 60
+        },
+        {
+            "id": 776158151,
+            "friendly_name": "Uppg\u00e5ngar API",
+            "url": "https:\/\/apps.appulize.com\/uppgangar\/1.0\/stockholm\/data.json",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "name",
+            "port": "",
+            "interval": 1200,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1467165600,
+            "logs": [
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628853,
+                    "duration": 190078,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779625880,
+                    "duration": 2973,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779624534,
+                    "duration": 1346,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779609835,
+                    "duration": 14699,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1758462986,
+                    "duration": 21146849,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1758462682,
+                    "duration": 304,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1758461339,
+                    "duration": 1343,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1758458342,
+                    "duration": 2997,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-96.649-99.297-99.770",
+            "custom_down_durations": "0-17672-17672-17672",
+            "response_times": [
+                {
+                    "datetime": 1779805200,
+                    "value": 115
+                },
+                {
+                    "datetime": 1779802800,
+                    "value": 80
+                },
+                {
+                    "datetime": 1779800400,
+                    "value": 136
+                },
+                {
+                    "datetime": 1779797700,
+                    "value": 100
+                },
+                {
+                    "datetime": 1779795300,
+                    "value": 101
+                },
+                {
+                    "datetime": 1779792900,
+                    "value": 126
+                },
+                {
+                    "datetime": 1779790500,
+                    "value": 96
+                },
+                {
+                    "datetime": 1779786900,
+                    "value": 91
+                },
+                {
+                    "datetime": 1779784500,
+                    "value": 78
+                },
+                {
+                    "datetime": 1779782100,
+                    "value": 108
+                },
+                {
+                    "datetime": 1779779700,
+                    "value": 102
+                },
+                {
+                    "datetime": 1779777300,
+                    "value": 90
+                },
+                {
+                    "datetime": 1779774900,
+                    "value": 105
+                },
+                {
+                    "datetime": 1779772500,
+                    "value": 86
+                },
+                {
+                    "datetime": 1779770100,
+                    "value": 98
+                },
+                {
+                    "datetime": 1779767700,
+                    "value": 94
+                },
+                {
+                    "datetime": 1779765300,
+                    "value": 88
+                },
+                {
+                    "datetime": 1779762900,
+                    "value": 99
+                },
+                {
+                    "datetime": 1779760500,
+                    "value": 87
+                },
+                {
+                    "datetime": 1779758100,
+                    "value": 108
+                },
+                {
+                    "datetime": 1779755700,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779753300,
+                    "value": 81
+                },
+                {
+                    "datetime": 1779750900,
+                    "value": 93
+                },
+                {
+                    "datetime": 1779748500,
+                    "value": 70
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 114
+                },
+                {
+                    "datetime": 1779743700,
+                    "value": 72
+                },
+                {
+                    "datetime": 1779741300,
+                    "value": 69
+                },
+                {
+                    "datetime": 1779738600,
+                    "value": 99
+                },
+                {
+                    "datetime": 1779736200,
+                    "value": 104
+                },
+                {
+                    "datetime": 1779733800,
+                    "value": 109
+                }
+            ],
+            "average_response_time": "98.183",
+            "responsetime_length": 60
+        },
+        {
+            "id": 789977480,
+            "friendly_name": "web.appulize.com",
+            "url": "web.appulize.com",
+            "type": 3,
+            "sub_type": "",
+            "keyword_type": null,
+            "keyword_case_type": null,
+            "keyword_value": "",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 9,
+            "create_datetime": 1638822349,
+            "logs": [
+                {
+                    "type": 1,
+                    "datetime": 1779783011,
+                    "duration": 0,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 98,
+                    "datetime": 1779706346,
+                    "duration": 0,
+                    "reason": {
+                        "code": 98,
+                        "detail": "Monitor started"
+                    }
+                },
+                {
+                    "type": 99,
+                    "datetime": 1779628853,
+                    "duration": 77493,
+                    "reason": {
+                        "code": 99,
+                        "detail": "Monitor paused"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1779628852,
+                    "duration": 154159,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1779609105,
+                    "duration": 19747,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1758463223,
+                    "duration": 21145882,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1758456960,
+                    "duration": 6263,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1757496430,
+                    "duration": 960530,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1757496128,
+                    "duration": 302,
+                    "reason": {
+                        "code": "444444",
+                        "detail": "No Response"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "0.000-0.000-0.000-0.000",
+            "custom_down_durations": "86400-604800-2592000-7776000",
+            "response_times": [
+                {
+                    "datetime": 1779751500,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779750900,
+                    "value": 90
+                },
+                {
+                    "datetime": 1779750300,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779749700,
+                    "value": 87
+                },
+                {
+                    "datetime": 1779749100,
+                    "value": 84
+                },
+                {
+                    "datetime": 1779748500,
+                    "value": 92
+                },
+                {
+                    "datetime": 1779747900,
+                    "value": 78
+                },
+                {
+                    "datetime": 1779747300,
+                    "value": 78
+                },
+                {
+                    "datetime": 1779746700,
+                    "value": 93
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 82
+                },
+                {
+                    "datetime": 1779745500,
+                    "value": 94
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 101
+                },
+                {
+                    "datetime": 1779744300,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779743400,
+                    "value": 95
+                },
+                {
+                    "datetime": 1779742200,
+                    "value": 88
+                },
+                {
+                    "datetime": 1779741600,
+                    "value": 89
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 94
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 83
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 85
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 94
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 84
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 80
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 91
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 93
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 81
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 92
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 88
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 83
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 84
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 87
+                }
+            ],
+            "average_response_time": "87.050",
+            "responsetime_length": 60
+        },
+        {
+            "id": 776158139,
+            "friendly_name": "www.appulize.com",
+            "url": "http:\/\/www.appulize.com",
+            "type": 2,
+            "sub_type": "",
+            "keyword_type": 2,
+            "keyword_case_type": 0,
+            "keyword_value": "Appulize. All rights reserved.",
+            "port": "",
+            "interval": 300,
+            "timeout": 30,
+            "status": 2,
+            "create_datetime": 1467165600,
+            "logs": [
+                {
+                    "type": 2,
+                    "datetime": 1776170452,
+                    "duration": 3648479,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1776170144,
+                    "duration": 308,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1764796486,
+                    "duration": 11373658,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1764796162,
+                    "duration": 324,
+                    "reason": {
+                        "code": "888888",
+                        "detail": "Keyword Not Found"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1764795400,
+                    "duration": 762,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1764794438,
+                    "duration": 962,
+                    "reason": {
+                        "code": "333333",
+                        "detail": "Connection Timeout"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1763476461,
+                    "duration": 1317977,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1763470947,
+                    "duration": 5514,
+                    "reason": {
+                        "code": "888888",
+                        "detail": "Keyword Not Found"
+                    }
+                },
+                {
+                    "type": 2,
+                    "datetime": 1763470268,
+                    "duration": 679,
+                    "reason": {
+                        "code": "200",
+                        "detail": "OK"
+                    }
+                },
+                {
+                    "type": 1,
+                    "datetime": 1763469959,
+                    "duration": 309,
+                    "reason": {
+                        "code": "888888",
+                        "detail": "Keyword Not Found"
+                    }
+                }
+            ],
+            "userId": 47488,
+            "custom_uptime_ratio": "100.000-100.000-100.000-99.996",
+            "custom_down_durations": "0-0-0-308",
+            "response_times": [
+                {
+                    "datetime": 1779751800,
+                    "value": 448
+                },
+                {
+                    "datetime": 1779751200,
+                    "value": 411
+                },
+                {
+                    "datetime": 1779750600,
+                    "value": 425
+                },
+                {
+                    "datetime": 1779750000,
+                    "value": 419
+                },
+                {
+                    "datetime": 1779749400,
+                    "value": 401
+                },
+                {
+                    "datetime": 1779748800,
+                    "value": 312
+                },
+                {
+                    "datetime": 1779748200,
+                    "value": 349
+                },
+                {
+                    "datetime": 1779747600,
+                    "value": 346
+                },
+                {
+                    "datetime": 1779746700,
+                    "value": 418
+                },
+                {
+                    "datetime": 1779746100,
+                    "value": 416
+                },
+                {
+                    "datetime": 1779745500,
+                    "value": 436
+                },
+                {
+                    "datetime": 1779744900,
+                    "value": 353
+                },
+                {
+                    "datetime": 1779744300,
+                    "value": 454
+                },
+                {
+                    "datetime": 1779743400,
+                    "value": 572
+                },
+                {
+                    "datetime": 1779742200,
+                    "value": 443
+                },
+                {
+                    "datetime": 1779741600,
+                    "value": 402
+                },
+                {
+                    "datetime": 1779740700,
+                    "value": 435
+                },
+                {
+                    "datetime": 1779740100,
+                    "value": 401
+                },
+                {
+                    "datetime": 1779739500,
+                    "value": 437
+                },
+                {
+                    "datetime": 1779738900,
+                    "value": 360
+                },
+                {
+                    "datetime": 1779738300,
+                    "value": 430
+                },
+                {
+                    "datetime": 1779737700,
+                    "value": 417
+                },
+                {
+                    "datetime": 1779737100,
+                    "value": 418
+                },
+                {
+                    "datetime": 1779736500,
+                    "value": 352
+                },
+                {
+                    "datetime": 1779735900,
+                    "value": 358
+                },
+                {
+                    "datetime": 1779735300,
+                    "value": 435
+                },
+                {
+                    "datetime": 1779734700,
+                    "value": 418
+                },
+                {
+                    "datetime": 1779734100,
+                    "value": 435
+                },
+                {
+                    "datetime": 1779733500,
+                    "value": 342
+                },
+                {
+                    "datetime": 1779732900,
+                    "value": 403
+                }
+            ],
+            "average_response_time": "415.067",
+            "responsetime_length": 60
+        },
+        {
+            "id": 999999999,
+            "friendly_name": "minimal"
+        }
+    ]
+}
