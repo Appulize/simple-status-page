@@ -2,6 +2,7 @@ import { html, useMemo } from 'htm/preact';
 import { Icon } from '/assets/icons.js';
 
 export const fmtRelative = (ts) => {
+  if (!ts || ts <= 0) return '—';
   const diff = Math.max(0, Math.floor(Date.now() / 1000) - ts);
   if (diff < 60)       return `${diff}s ago`;
   if (diff < 3600)     return `${Math.floor(diff / 60)}m ago`;
@@ -16,6 +17,14 @@ export const fmtNum = (n, decimals = 0) => {
 
 export const fmtTime = (ts) =>
   new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+export const fmtDuration = (sec) => {
+  if (sec == null || sec <= 0) return '';
+  if (sec < 60)    return `${sec}s`;
+  if (sec < 3600)  return `${Math.round(sec / 60)}m`;
+  if (sec < 86400) return `${Math.round(sec / 3600)}h`;
+  return `${Math.round(sec / 86400)}d`;
+};
 
 const severityOf = (val, t) => {
   if (!t) return null;
@@ -131,7 +140,7 @@ export function EventsEl({ el }) {
           <span class="event-tick" />
           <span class="event-time">${fmtRelative(e.t)}</span>
           <span class="event-title">${e.title}</span>
-          <span class="event-dur">${e.durationSec ? `${e.durationSec}s` : ''}</span>
+          <span class="event-dur">${fmtDuration(e.durationSec)}</span>
         </div>
       `)}
     </div>

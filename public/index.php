@@ -38,7 +38,7 @@ if (is_file($settingsFile)) {
 <body>
   <div id="root"></div>
   <noscript>
-    <p style="padding:2rem;font-family:sans-serif">
+    <p class="noscript-msg">
       JavaScript is required to view this status page.
     </p>
   </noscript>

@@ -32,13 +32,40 @@ foreach ($instances as $i => $inst) {
     }
     echo "OK   $instId ($providerId): " . count($nodes) . " nodes\n";
 
+    // Preserve any existing visibility / displayName overrides by id.
+    $existing = [];
+    foreach (($inst['items'] ?? []) as $row) {
+        if (isset($row['id'])) {
+            $existing[(string) $row['id']] = $row;
+        }
+    }
+
     $items = [];
+    $seen  = [];
     foreach ($nodes as $n) {
+        $id      = (string) ($n['id'] ?? '');
+        $label   = (string) ($n['label'] ?? '');
+        $isChild = ($n['parentId'] ?? null) !== null;
+        $prior   = $existing[$id] ?? null;
         $items[] = [
-            'id'          => (string) ($n['id'] ?? ''),
-            'visible'     => true,
-            'displayName' => null,
+            'id'          => $id,
+            // Children (network interfaces, disks, …) default to hidden so the
+            // grid stays focused on top-level hosts. Admin opts them in via
+            // the Catalog tab. Existing overrides are preserved.
+            'visible'     => $prior['visible']     ?? !$isChild,
+            // Cache the upstream label so disappeared items still render with
+            // a friendly name. Admin overrides win.
+            'displayName' => $prior['displayName'] ?? ($label !== '' ? $label : null),
         ];
+        $seen[$id] = true;
+    }
+    // Preserve orphans: items previously discovered that upstream no longer
+    // returns. The Aggregator will surface them with a 'missing from upstream'
+    // placeholder; admin removes them by unchecking in the Catalog tab.
+    foreach ($existing as $id => $row) {
+        if (!isset($seen[$id])) {
+            $items[] = $row;
+        }
     }
     $settings['instances'][$i]['items'] = $items;
 }

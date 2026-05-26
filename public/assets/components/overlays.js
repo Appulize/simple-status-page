@@ -51,9 +51,8 @@ export function SettingsDrawer({ prefs, setPref, onClose }) {
   const [tab, setTab] = useState('appearance');
 
   return html`
-    <>
-      <div class="scrim" onClick=${onClose} />
-      <aside class="drawer" role="dialog" aria-label="Settings">
+    <div class="scrim" onClick=${onClose} />
+    <aside class="drawer" role="dialog" aria-label="Settings">
         <div class="drawer-head">
           <h2>Settings</h2>
           <button class="iconbtn" onClick=${onClose} aria-label="Close"><${Icon} name="x" /></button>
@@ -71,7 +70,6 @@ export function SettingsDrawer({ prefs, setPref, onClose }) {
           ${tab === 'auth'       && html`<${AuthTab} />`}
         </div>
       </aside>
-    </>
   `;
 }
 
@@ -203,9 +201,8 @@ export function LoginModal({ onClose, onSuccess }) {
   }
 
   return html`
-    <>
-      <div class="scrim" onClick=${onClose} />
-      <div class="modal" role="dialog" aria-label="Sign in">
+    <div class="scrim" onClick=${onClose} />
+    <div class="modal" role="dialog" aria-label="Sign in">
         <h2>Sign in</h2>
         <p>Authenticated admin access to settings, discovery, and threshold editing.</p>
         <form onSubmit=${submit}>
@@ -224,7 +221,6 @@ export function LoginModal({ onClose, onSuccess }) {
           <span class="mono">settings.json</span> to re-onboard.
         </p>
       </div>
-    </>
   `;
 }
 
@@ -261,9 +257,8 @@ export function OnboardOverlay({ onSuccess }) {
   }
 
   return html`
-    <>
-      <div class="scrim" />
-      <div class="modal modal--wide" role="dialog" aria-label="First-run setup">
+    <div class="scrim" />
+    <div class="modal modal--wide" role="dialog" aria-label="First-run setup">
         <div class="onboard-icon">
           <${Icon} name="bolt" width="22" height="22" />
         </div>
@@ -293,16 +288,14 @@ export function OnboardOverlay({ onSuccess }) {
           No telemetry, no external services.
         </p>
       </div>
-    </>
   `;
 }
 
 /* ── About modal ── */
 export function AboutModal({ onClose, itemCount = 0 }) {
   return html`
-    <>
-      <div class="scrim" onClick=${onClose} />
-      <div class="modal modal--md" role="dialog" aria-label="About">
+    <div class="scrim" onClick=${onClose} />
+    <div class="modal modal--md" role="dialog" aria-label="About">
         <h2>About this status page</h2>
         <p>
           A fast, lightweight status page for self-hosted services.
@@ -318,6 +311,5 @@ export function AboutModal({ onClose, itemCount = 0 }) {
           </a>
         </div>
       </div>
-    </>
   `;
 }
