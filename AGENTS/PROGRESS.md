@@ -106,5 +106,43 @@
 
 ---
 
-## Next: Step 4 — Auth layer + first-run flow
+## 2026-05-26 — Step 4: Auth layer + first-run flow
+
+**Deliverables shipped:**
+
+`src/Auth/Password.php` — `hash()` / `verify()` wrappers around bcrypt
+
+`src/Auth/Session.php` — `start()` / `isAuthenticated()` / `login()` (calls `session_regenerate_id(true)`) / `destroy()` (clears `$_SESSION`, expires cookie, calls `session_destroy()`)
+
+`src/Auth/Token.php` — `verify(token, cfg)` using `hash_equals`; respects `methods.token.enabled` flag
+
+`src/Auth/Throttle.php` — file-counter throttle in `cache/throttle/<sha256(ip)>`; MAX=5, WINDOW=300s; `isThrottled()` / `retryAfter()` / `recordFailure()` / `clear()`; creates `cache/throttle/` with 0700 on first write
+
+`src/Auth/Authenticator.php` — checks all 4 auth methods in priority order (session → token → basic → clientCert); `requireAuth()` terminates with 401 if not authenticated
+
+`public/api/auth.php` — `GET /api/auth` → `{authenticated, firstRun, csrfToken}`; starts session (generates CSRF token); `Cache-Control: private, no-store`
+
+`public/api/login.php` — `POST /api/login` → throttle check (429 + `Retry-After`) → firstRun guard (403) → password verify → on fail: recordFailure then re-check throttle → on success: clear throttle + Session::login() + return `{authenticated, csrfToken}`
+
+`public/api/logout.php` — `POST /api/logout` → `Session::destroy()` → `{ok: true}`; no CSRF required (attacker-forced-logout is minor nuisance, not security breach)
+
+`public/api/onboard.php` — `POST /api/onboard` → firstRun guard (403) → length check ≥8 (400) → bcrypt hash → `Store::write()` → `Session::login()` → `{ok: true, csrfToken}`
+
+**Frontend wiring:**
+
+`public/assets/components/overlays.js` — `LoginModal` and `OnboardOverlay` now make real API calls; both show busy state, inline errors, and call `onSuccess(json)` on completion; removed inline `style=${{ opacity }}` from OnboardOverlay button (uses `.btn:disabled` CSS instead)
+
+`public/assets/app.js` — fetches `/api/auth` on mount; auto-shows onboard overlay when `firstRun: true`; ESC blocked on onboard overlay; lock icon becomes unlock icon when authenticated (click to logout); `handleAuthSuccess` and `handleLogout` update auth state
+
+`public/assets/icons.js` — added `unlock` icon (open padlock shackle)
+
+`public/assets/app.css` — added `.btn:disabled { opacity: .35; cursor: not-allowed; }` and `.form-error { color: var(--down-ink); }`
+
+**Verification (curl):** all 11 checks pass — auth before onboard (firstRun:true), onboard sets password + auto-login, auth-with-cookie (authenticated:true), login correct (200), auth-with-login-cookie, logout, auth-after-logout (authenticated:false), onboard-again (403), short-password (400), 5x wrong password (4×401 then 429 with Retry-After header), throttle persists (429).
+
+**Tests:** 48/48 pass (no regressions).
+
+**Next: Step 5 — Settings management API + UI**
+
+---
 

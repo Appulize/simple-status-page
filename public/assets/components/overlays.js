@@ -1,4 +1,4 @@
-import { html, useState } from 'htm/preact';
+import { html, useState, useRef } from 'htm/preact';
 import { Icon } from '/assets/icons.js';
 
 /* ── Shared sub-components ── */
@@ -172,18 +172,53 @@ function AuthTab() {
 }
 
 /* ── Login modal ── */
-export function LoginModal({ onClose }) {
+export function LoginModal({ onClose, onSuccess }) {
+  const [pw, setPw]       = useState('');
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy || !pw) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || 'Login failed.');
+        setBusy(false);
+        return;
+      }
+      onSuccess?.(json);
+    } catch {
+      setError('Network error. Please try again.');
+      setBusy(false);
+    }
+  }
+
   return html`
     <>
       <div class="scrim" onClick=${onClose} />
       <div class="modal" role="dialog" aria-label="Sign in">
         <h2>Sign in</h2>
         <p>Authenticated admin access to settings, discovery, and threshold editing.</p>
-        <div class="form-row">
-          <label for="pw">Password</label>
-          <input id="pw" class="input" type="password" autoFocus />
-        </div>
-        <button class="btn btn-block" onClick=${onClose}>Continue</button>
+        <form onSubmit=${submit}>
+          <div class="form-row">
+            <label for="pw">Password</label>
+            <input id="pw" class="input" type="password" autoFocus ref=${inputRef}
+                   value=${pw} onInput=${e => setPw(e.target.value)} />
+          </div>
+          ${error && html`<p class="form-error">${error}</p>`}
+          <button class="btn btn-block" type="submit" disabled=${busy || !pw}>
+            ${busy ? 'Signing in…' : 'Continue'}
+          </button>
+        </form>
         <p class="modal-note-sm">
           Forgot? Clear <span class="mono">auth.passwordHash</span> in
           <span class="mono">settings.json</span> to re-onboard.
@@ -194,10 +229,37 @@ export function LoginModal({ onClose }) {
 }
 
 /* ── Onboarding overlay ── */
-export function OnboardOverlay({ onClose }) {
-  const [pw, setPw]   = useState('');
-  const [pw2, setPw2] = useState('');
+export function OnboardOverlay({ onSuccess }) {
+  const [pw, setPw]       = useState('');
+  const [pw2, setPw2]     = useState('');
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState('');
   const ok = pw.length >= 8 && pw === pw2;
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!ok || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || 'Setup failed.');
+        setBusy(false);
+        return;
+      }
+      onSuccess?.(json);
+    } catch {
+      setError('Network error. Please try again.');
+      setBusy(false);
+    }
+  }
+
   return html`
     <>
       <div class="scrim" />
@@ -210,20 +272,22 @@ export function OnboardOverlay({ onClose }) {
           Set an admin password to unlock settings and discovery.
           The public status view becomes available immediately after.
         </p>
-        <div class="form-row">
-          <label>Admin password</label>
-          <input class="input" type="password" value=${pw}
-                 onInput=${e => setPw(e.target.value)} placeholder="At least 8 characters" />
-        </div>
-        <div class="form-row">
-          <label>Confirm</label>
-          <input class="input" type="password" value=${pw2}
-                 onInput=${e => setPw2(e.target.value)} />
-        </div>
-        <button class="btn btn-block" disabled=${!ok}
-                style=${{ opacity: ok ? 1 : .35 }} onClick=${ok ? onClose : undefined}>
-          Set password & continue
-        </button>
+        <form onSubmit=${submit}>
+          <div class="form-row">
+            <label>Admin password</label>
+            <input class="input" type="password" value=${pw}
+                   onInput=${e => setPw(e.target.value)} placeholder="At least 8 characters" />
+          </div>
+          <div class="form-row">
+            <label>Confirm</label>
+            <input class="input" type="password" value=${pw2}
+                   onInput=${e => setPw2(e.target.value)} />
+          </div>
+          ${error && html`<p class="form-error">${error}</p>`}
+          <button class="btn btn-block" type="submit" disabled=${!ok || busy}>
+            ${busy ? 'Setting up…' : 'Set password & continue'}
+          </button>
+        </form>
         <p class="modal-note">
           Hashed with bcrypt. Stored in <span class="mono">config/settings.json</span>.
           No telemetry, no external services.

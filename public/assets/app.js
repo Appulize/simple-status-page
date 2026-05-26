@@ -48,6 +48,18 @@ function App() {
   const [overlay, setOverlay] = useState(null);
   const [data, setData] = useState(null);   // null = loading, false = error
   const [etag, setEtag] = useState('');
+  const [auth, setAuth] = useState({ authenticated: false, firstRun: false, csrfToken: '' });
+
+  // Check auth state on mount; show onboard overlay if first-run
+  useEffect(() => {
+    fetch('/api/auth')
+      .then(r => r.json())
+      .then(json => {
+        setAuth({ authenticated: json.authenticated, firstRun: json.firstRun, csrfToken: json.csrfToken || '' });
+        if (json.firstRun) setOverlay('onboard');
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch /api/state; re-fetch on interval
   useEffect(() => {
@@ -71,12 +83,25 @@ function App() {
     return () => clearInterval(timer);
   }, [prefs.refreshInterval]);
 
-  // ESC closes overlay
+  // ESC closes overlay (but not the onboard overlay — must complete setup)
   useEffect(() => {
-    const h = e => { if (e.key === 'Escape') setOverlay(null); };
+    const h = e => {
+      if (e.key === 'Escape' && overlay !== 'onboard') setOverlay(null);
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, []);
+  }, [overlay]);
+
+  function handleAuthSuccess(json) {
+    setAuth({ authenticated: true, firstRun: false, csrfToken: json.csrfToken || '' });
+    setOverlay(null);
+  }
+
+  async function handleLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    setAuth({ authenticated: false, firstRun: false, csrfToken: '' });
+    setOverlay(null);
+  }
 
   const items = data?.items ?? [];
   const meta  = data?.meta  ?? {};
@@ -106,9 +131,14 @@ function App() {
                   onClick=${() => setPref('theme', resolveTheme(prefs.theme) === 'dark' ? 'light' : 'dark')}>
             <${Icon} name=${resolveTheme(prefs.theme) === 'dark' ? 'sun' : 'moon'} />
           </button>
-          <button class="iconbtn" aria-label="Sign in" onClick=${() => setOverlay('login')}>
-            <${Icon} name="lock" />
-          </button>
+          ${auth.authenticated
+            ? html`<button class="iconbtn" aria-label="Sign out" onClick=${handleLogout}>
+                <${Icon} name="unlock" />
+              </button>`
+            : html`<button class="iconbtn" aria-label="Sign in" onClick=${() => setOverlay('login')}>
+                <${Icon} name="lock" />
+              </button>`
+          }
           <button class="iconbtn" aria-label="Settings" onClick=${() => setOverlay('settings')}>
             <${Icon} name="cog" />
           </button>
@@ -196,8 +226,8 @@ function App() {
 
       ${overlay === 'settings' && html`
         <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close} />`}
-      ${overlay === 'login'    && html`<${LoginModal}     onClose=${close} />`}
-      ${overlay === 'onboard'  && html`<${OnboardOverlay} onClose=${close} />`}
+      ${overlay === 'login'    && html`<${LoginModal}     onClose=${close} onSuccess=${handleAuthSuccess} />`}
+      ${overlay === 'onboard'  && html`<${OnboardOverlay} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'about'    && html`<${AboutModal}     onClose=${close} itemCount=${items.length} />`}
     </div>
   `;
