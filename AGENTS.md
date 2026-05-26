@@ -70,6 +70,7 @@ When reading logs, errors, or stack traces, read the whole thing. Half-read trac
 Context is the constraint. Long sessions with accumulated failed attempts perform worse than fresh sessions with a better prompt.
 After two failed corrections on the same issue, stop. Summarize what you learned and ask the user to reset the session with a sharper prompt.
 Use subagents (Claude Code: "use subagents to investigate X") for exploration tasks that would otherwise pollute the main context with dozens of file reads.
+Also use cheap Sonnet or Haiku subagents for simple tasks like editing a file when appropriate to save on usage.
 When committing, write descriptive commit messages (subject under 72 chars, body explains the why). No "update file" or "fix bug" commits. No "Co-Authored-By: Claude" attribution unless the project explicitly wants it.
 
 # 7. Communication style
