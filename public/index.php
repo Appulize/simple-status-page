@@ -2,7 +2,11 @@
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/bootstrap.php';
 
-sendSecurityHeaders();
+// Importmap is an inline script; compute its hash so CSP stays strict.
+// Using one PHP variable for both output and hashing ensures they never drift.
+$importmapJson = "\n  {\n    \"imports\": {\n      \"preact\":       \"/assets/vendor/preact.module.js\",\n      \"preact/hooks\": \"/assets/vendor/preact-hooks.module.js\",\n      \"htm/preact\":   \"/assets/vendor/htm-preact.module.js\"\n    }\n  }\n  ";
+$importmapHash = "'sha256-" . base64_encode(hash('sha256', $importmapJson, true)) . "'";
+sendSecurityHeaders($importmapHash);
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -29,15 +33,7 @@ if (is_file($settingsFile)) {
   <title>Status &middot; <?= $siteTitle ?></title>
   <link rel="stylesheet" href="/assets/app.css" />
   <link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="oklch(62%25 0.14 150)" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>' />
-  <script type="importmap">
-  {
-    "imports": {
-      "preact":       "/assets/vendor/preact.module.js",
-      "preact/hooks": "/assets/vendor/preact-hooks.module.js",
-      "htm/preact":   "/assets/vendor/htm-preact.module.js"
-    }
-  }
-  </script>
+  <script type="importmap"><?= $importmapJson ?></script>
 </head>
 <body>
   <div id="root"></div>

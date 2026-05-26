@@ -57,9 +57,10 @@ ini_set('session.cookie_httponly', '1');
 // ── Security headers ─────────────────────────────────────────────────────────
 // Must be sent before any output. Called from public/index.php and every
 // public/api/*.php entry point.
-function sendSecurityHeaders(): void
+function sendSecurityHeaders(string $extraScriptSrc = ''): void
 {
-    header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    $scriptSrc = "'self'" . ($extraScriptSrc !== '' ? " $extraScriptSrc" : '');
+    header("Content-Security-Policy: default-src 'self'; script-src $scriptSrc; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: strict-origin-when-cross-origin');

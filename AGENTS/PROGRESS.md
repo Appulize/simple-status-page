@@ -52,5 +52,59 @@
 
 ---
 
-## Next: Step 3 plan — see section below
+---
+
+## 2026-05-26 — Step 3: PHP Backend Foundation + Stub API
+
+**Deliverables shipped:**
+
+`src/Config/Store.php`
+- Static `$path` set via `init()`; falls back to `config/settings.json` relative to project root if never called
+- `read()` — returns defaults on missing file; on corrupt JSON logs error and returns last-known-good (cached in static `$lastKnown`) or defaults
+- `write()` — acquires `LOCK_EX` on `.lock` file in same dir, writes to temp file, renames atomically; creates dir with 0700 if missing; cleans up temp on failure
+- `isFirstRun()` — true if file missing or `auth.passwordHash` is empty/null
+- `defaults()` — full skeleton matching PLAN §5 schema
+- `init()` resets `$lastKnown` so test cases using different paths don't bleed into each other
+
+`src/Config/Migrations.php` — seeds `schemaVersion: 1` if absent; scaffold for future migrations
+
+`src/Util/Safe.php` — `str()` / `int()` / `float()` / `bool()` / `arr()` coercions with sane defaults; `get()` dot-notation nested read; `bool()` handles "true"/"yes"/"1" and "false"/"no"/"0" string variants
+
+`src/Util/Log.php` — `info()` / `warn()` / `error()` via `error_log()`; formats as `[LEVEL] msg {key=json, ...}`
+
+`src/Util/Time.php` — `now()` wraps `time()`; minimal, expandable
+
+`src/Http/Request.php` — wraps superglobals; `header()` normalises to `HTTP_*` keys (special-cases CONTENT_TYPE/CONTENT_LENGTH); `body()` cached from `php://input`; `json()` / `post()` / `isJson()` / `bearerToken()` / `basicAuth()` / `ifNoneMatch()` / `host()`
+
+`src/Http/Json.php` — `ok()` / `error()` / `notFound()` / `unauthorized()` / `methodNotAllowed()` / `notModified()` — all `never`; `ok()` accepts extra headers map for ETag etc.
+
+`src/Http/Csrf.php` — `token()` generates and caches in `$_SESSION['csrf_token']`; `validate()` uses `hash_equals`
+
+`public/api/health.php` — `GET /api/health` → `{ok: true, time: <unix>}`; accepts GET + HEAD
+
+`public/api/config.php` — `GET /api/config` → public config payload; siteTitle falls back to HTTP_HOST; includes `firstRun` field; `Cache-Control: public, max-age=30`
+
+`public/api/state.php` — `GET /api/state` → stub empty state; ETag computed from items+instances (not timestamp) so conditional requests work even on stub; 304 on If-None-Match match; `Cache-Control: no-store`
+
+`public/router.php` — dev-server URL router (`php -S localhost:8099 -t public public/router.php`); rewrites clean URLs to `.php` files; production Caddy does not use this
+
+`tests/run.php` — discovers and runs all `*Test.php` files; `check(bool, label)` helper; exits non-zero on failure
+
+`tests/ConfigStoreTest.php` — 21 assertions covering missing-file defaults, round-trip write/read, corrupt-JSON fallback, `isFirstRun()` in all three states, `defaults()` key presence
+
+`tests/UtilSafeTest.php` — 17 assertions covering all coercion methods and edge cases
+
+`tests/HttpJsonTest.php` — 10 assertions verifying state and config payload shapes round-trip through JSON correctly
+
+`config/settings.example.json` — credentials template for UptimeRobot + Beszel; copy to `settings.json` (gitignored) to test with real providers
+
+**Bug fixed:** `sendSecurityHeaders()` had `script-src 'self'` with no allowance for inline scripts, blocking `<script type="importmap">`. Fixed by adding optional `$extraScriptSrc` parameter to the function, and computing the importmap SHA-256 hash dynamically in `index.php` from the same PHP variable used to output the content (so hash and output cannot drift).
+
+**Verification:** `php tests/run.php` → 48/48 pass; both shell checks pass; all three endpoints return valid JSON; ETag + 304 on `/api/state` confirmed; browser renders "ALL SYSTEMS NORMAL · All services operational. · 0 items"; PHP error log clean.
+
+**Dev server command:** `php -S localhost:8099 -t public public/router.php`
+
+---
+
+## Next: Step 4 — Auth layer + first-run flow
 

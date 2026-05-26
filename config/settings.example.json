@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "auth": {
+    "passwordHash": "",
+    "methods": {
+      "form":       { "enabled": true },
+      "basic":      { "enabled": false },
+      "token":      { "enabled": false, "token": "" },
+      "clientCert": { "enabled": false, "headerName": "X-Client-Cert-Subject", "allowedSubjects": [] }
+    }
+  },
+  "ui": {
+    "siteTitle":          null,
+    "refreshIntervalSec": 30,
+    "theme":              "auto",
+    "accent":             "mint",
+    "cardstyle":          "paper",
+    "mark":               "stripe",
+    "density":            "regular",
+    "mode":               "detailed",
+    "sparklines":         true,
+    "summaryBar":         true
+  },
+  "instances": [
+    {
+      "id":              "REPLACE_WITH_UUID",
+      "provider":        "uptimerobot",
+      "providerVersion": 1,
+      "name":            "UptimeRobot",
+      "config": {
+        "apiKey": "YOUR_UPTIMEROBOT_API_KEY"
+      },
+      "items": []
+    },
+    {
+      "id":              "REPLACE_WITH_UUID_2",
+      "provider":        "beszel",
+      "providerVersion": 1,
+      "name":            "Beszel",
+      "config": {
+        "url":      "https://YOUR_BESZEL_URL",
+        "username": "YOUR_EMAIL",
+        "password": "YOUR_PASSWORD"
+      },
+      "items": []
+    }
+  ],
+  "displayOrder": [],
+  "itemConfig":   {}
+}
