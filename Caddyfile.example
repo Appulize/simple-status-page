@@ -1,0 +1,45 @@
+# Caddyfile.example — reference configuration for simple-status-page
+# Copy and adapt; do not use this file directly.
+#
+# Requirements: Caddy 2.7+ · PHP-FPM running on the same host
+#
+# File permissions before starting:
+#   chown -R www-data:www-data config/ cache/
+#   chmod 700 config/ cache/ cache/sessions/ cache/throttle/
+#   chmod 600 config/settings.json   # after first write
+
+status.example.com {
+    root * /srv/simple-status-page/public
+
+    # Compression
+    encode zstd gzip
+
+    # PHP-FPM: route all requests through index.php (SPA front controller)
+    php_fastcgi unix//run/php/php8.2-fpm.sock {
+        # Ensure every request hits index.php so the SPA handles routing
+        try_files {path} /index.php
+    }
+
+    # Serve static assets directly (bypass PHP)
+    file_server
+
+    # -----------------------------------------------------------------
+    # Optional: client certificate authentication
+    # Uncomment the tls block and the header_up directive below.
+    # The PHP app reads the subject DN from the header and checks it
+    # against settings.json auth.methods.clientCert.allowedSubjects.
+    # -----------------------------------------------------------------
+    # tls {
+    #     client_auth {
+    #         mode                 request   # or "require" to enforce
+    #         trusted_ca_certs_pem /etc/ssl/client-ca.pem
+    #     }
+    # }
+    # header_up X-Client-Cert-Subject {tls_client_subject}
+}
+
+# Redirect HTTP → HTTPS (Caddy handles this automatically when you use
+# a real hostname above, but explicit is clear):
+# http://status.example.com {
+#     redir https://{host}{uri} permanent
+# }

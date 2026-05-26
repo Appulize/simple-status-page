@@ -1,1 +1,19 @@
 .DS_Store
+Thumbs.db
+
+# Composer (not used, but guard against accidental installs)
+vendor/
+
+# Node (only used for vendor script; node_modules never committed)
+node_modules/
+
+# Runtime files never committed
+config/settings.json
+cache/state.json
+cache/sessions/
+cache/throttle/
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace

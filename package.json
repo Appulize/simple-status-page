@@ -1,0 +1,11 @@
+{
+  "name": "simple-status-page",
+  "private": true,
+  "scripts": {
+    "vendor": "node bin/vendor.mjs"
+  },
+  "dependencies": {
+    "preact": "10.25.4",
+    "htm": "3.1.1"
+  }
+}
