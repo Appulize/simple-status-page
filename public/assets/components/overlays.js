@@ -53,11 +53,23 @@ function InlineError({ message }) {
 }
 
 /* ── Settings drawer (stateful when authenticated) ── */
-export function SettingsDrawer({ prefs, setPref, onClose, authenticated, csrfToken, onSaved }) {
+export function SettingsDrawer({ prefs, setPref, onClose, authenticated, csrfToken, onSaved, stateItems = [] }) {
   const [tab, setTab] = useState('appearance');
   const [previewing, setPreviewing] = useState(false);
   const previewSetPref = (k, v) => { setPreviewing(true); setPref(k, v); };
   const scrimClear = tab === 'appearance' && previewing;
+  // Focus the active tab on first mount so keyboard users land in the drawer
+  // immediately. The active-tab ref also receives focus when tab changes via
+  // arrow-key nav, so roving focus follows aria-current.
+  const activeTabRef = useRef(null);
+  const focusOnTabChange = useRef(false);
+  useEffect(() => { activeTabRef.current?.focus?.(); }, []);
+  useEffect(() => {
+    if (focusOnTabChange.current) {
+      activeTabRef.current?.focus?.();
+      focusOnTabChange.current = false;
+    }
+  }, [tab]);
 
   // Settings doc state (only when authenticated).
   // `settings`  = last server-committed view (what other tabs read).
@@ -193,9 +205,26 @@ export function SettingsDrawer({ prefs, setPref, onClose, authenticated, csrfTok
         <h2>Settings</h2>
         <button class="iconbtn" onClick=${handleClose} aria-label="Close"><${Icon} name="x" /></button>
       </div>
-      <div class="drawer-tabs">
+      <div class="drawer-tabs" role="tablist" aria-label="Settings sections"
+           onKeyDown=${e => {
+             const tabs = ['appearance', 'catalog', 'order', 'auth'];
+             const i = tabs.indexOf(tab);
+             if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' ||
+                 e.key === 'Home'       || e.key === 'End') {
+               e.preventDefault();
+               let ni;
+               if      (e.key === 'Home')       ni = 0;
+               else if (e.key === 'End')        ni = tabs.length - 1;
+               else                             ni = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+               focusOnTabChange.current = true;
+               switchTab(tabs[ni]);
+             }
+           }}>
         ${['appearance', 'catalog', 'order', 'auth'].map(t => html`
-          <button key=${t} class="drawer-tab" data-active=${tab === t}
+          <button key=${t} class="drawer-tab" role="tab" data-active=${tab === t}
+                  aria-selected=${tab === t} aria-current=${tab === t ? 'page' : 'false'}
+                  tabIndex=${tab === t ? 0 : -1}
+                  ref=${tab === t ? activeTabRef : null}
                   onClick=${() => switchTab(t)}>${t === 'order' ? 'Display order' : t}</button>
         `)}
       </div>
@@ -204,7 +233,7 @@ export function SettingsDrawer({ prefs, setPref, onClose, authenticated, csrfTok
           <${AppearanceTab} prefs=${prefs} setPref=${previewSetPref} authenticated=${authenticated} />`}
         ${tab === 'catalog' && (authenticated
           ? html`<${CatalogTab} settings=${liveSettings} editLocal=${editLocal} saveSettings=${saveSettings}
-                                 csrfToken=${csrfToken} loadError=${loadError} />`
+                                 csrfToken=${csrfToken} loadError=${loadError} stateItems=${stateItems} />`
           : html`<${AuthGate} />`)}
         ${tab === 'order' && (authenticated
           ? html`<${OrderTab} settings=${liveSettings} saveSettings=${saveSettings} loadError=${loadError} />`
@@ -304,15 +333,51 @@ function AppearanceTab({ prefs, setPref, authenticated }) {
 }
 
 /* ── Catalog tab ── */
-function CatalogTab({ settings, editLocal, saveSettings, csrfToken, loadError }) {
+const CATALOG_COLLAPSED_KEY = 'simplestatus.catalog.collapsed.v1';
+function readCollapsed() {
+  try {
+    const raw = localStorage.getItem(CATALOG_COLLAPSED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+function writeCollapsed(set) {
+  try { localStorage.setItem(CATALOG_COLLAPSED_KEY, JSON.stringify([...set])); } catch {}
+}
+
+function CatalogTab({ settings, editLocal, saveSettings, csrfToken, loadError, stateItems = [] }) {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [rowError, setRowError] = useState({}); // keyed by instanceId for per-instance errors
   const [pendingDiscovery, setPendingDiscovery] = useState({});
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [thresholdsOpen, setThresholdsOpen] = useState({}); // key: instanceId|itemId
 
   if (loadError) return html`<p class="form-error">${loadError}</p>`;
   if (!settings) return html`<p class="drawer-intro">Loading…</p>`;
 
   const instances = settings.instances || [];
+
+  // Index state items by "instanceId|itemId" so each row can look up its live elements.
+  const stateByKey = useMemo(() => {
+    const m = {};
+    for (const it of stateItems || []) {
+      if (it && it.instanceId && it.itemId) {
+        m[it.instanceId + '|' + it.itemId] = it;
+      }
+    }
+    return m;
+  }, [stateItems]);
+
+  function toggleCollapsed(instId) {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(instId)) next.delete(instId); else next.add(instId);
+      writeCollapsed(next);
+      return next;
+    });
+  }
+  function toggleThresholdsPanel(key) {
+    setThresholdsOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  }
 
   function setError(instId, msg) {
     setRowError(prev => ({ ...prev, [instId]: msg }));
@@ -395,15 +460,49 @@ function CatalogTab({ settings, editLocal, saveSettings, csrfToken, loadError })
     });
   }
 
+  function setThresholdOverride(instId, itemId, elKey, side, value) {
+    const itemKey = instId + ':' + itemId;
+    const num = (value === '' || value === null || value === undefined) ? null : Number(value);
+    if (num !== null && Number.isNaN(num)) return; // reject garbage; UI shows empty for invalid
+    editLocal(draft => {
+      // PHP's empty `(object) []` round-trips as a JS Array; named keys on
+      // Array don't serialize. Normalise to plain object whenever we touch it.
+      if (!draft.itemConfig || Array.isArray(draft.itemConfig)) draft.itemConfig = {};
+      if (!draft.itemConfig[itemKey] || Array.isArray(draft.itemConfig[itemKey])) draft.itemConfig[itemKey] = {};
+      const cfg = draft.itemConfig[itemKey];
+      if (!cfg.thresholdOverrides || Array.isArray(cfg.thresholdOverrides)) cfg.thresholdOverrides = {};
+      const pair = { ...(cfg.thresholdOverrides[elKey] || {}) };
+      if (num === null) delete pair[side];
+      else              pair[side] = num;
+      if (Object.keys(pair).length === 0) {
+        delete cfg.thresholdOverrides[elKey];
+      } else {
+        cfg.thresholdOverrides[elKey] = pair;
+      }
+      if (Object.keys(cfg.thresholdOverrides).length === 0) {
+        delete cfg.thresholdOverrides;
+      }
+      if (Object.keys(cfg).length === 0) {
+        delete draft.itemConfig[itemKey];
+      }
+    });
+  }
+
   return html`
     <div class="catalog">
       <p class="drawer-intro">Toggle visibility and rename discovered items. Removed-upstream items remain as orphans until you uncheck them.</p>
       ${instances.length === 0 && html`
         <p class="drawer-intro">No instances configured yet. Add one to get started.</p>`}
-      ${instances.map(inst => html`
-        <div key=${inst.id} class="cat-group">
+      ${instances.map(inst => {
+        const isCollapsed = collapsed.has(inst.id);
+        return html`
+        <div key=${inst.id} class="cat-group" data-collapsed=${String(isCollapsed)}>
           <div class="cat-group-h">
-            <b>${inst.name || inst.id}</b>
+            <button class="cat-group-toggle" onClick=${() => toggleCollapsed(inst.id)}
+                    aria-expanded=${String(!isCollapsed)} aria-label=${isCollapsed ? 'Expand' : 'Collapse'}>
+              <${Icon} name=${isCollapsed ? 'chevron-right' : 'chevron-down'} width="12" height="12" />
+              <b>${inst.name || inst.id}</b>
+            </button>
             <div class="actions">
               <button onClick=${() => rediscover(inst.id)} disabled=${pendingDiscovery[inst.id]}>
                 ${pendingDiscovery[inst.id] ? 'Discovering…' : 'Re-discover'}
@@ -411,19 +510,27 @@ function CatalogTab({ settings, editLocal, saveSettings, csrfToken, loadError })
               <button onClick=${() => removeInstance(inst.id)}>Remove</button>
             </div>
           </div>
-          ${(inst.items || []).map(it => html`
-            <${CatalogRow} key=${it.id}
-                           instanceId=${inst.id}
-                           item=${it}
-                           onToggle=${(next) => toggleVisible(inst.id, it.id, next)}
-                           onRename=${(name) => renameItem(inst.id, it.id, name)} />
-          `)}
-          ${(inst.items || []).length === 0 && html`
+          ${!isCollapsed && (inst.items || []).map(it => {
+            const key = inst.id + '|' + it.id;
+            return html`
+              <${CatalogRow} key=${it.id}
+                             instanceId=${inst.id}
+                             item=${it}
+                             thresholdsOpen=${!!thresholdsOpen[key]}
+                             onToggleThresholds=${() => toggleThresholdsPanel(key)}
+                             stateItem=${stateByKey[key] || null}
+                             itemConfigEntry=${(settings.itemConfig || {})[inst.id + ':' + it.id] || {}}
+                             onToggle=${(next) => toggleVisible(inst.id, it.id, next)}
+                             onRename=${(name) => renameItem(inst.id, it.id, name)}
+                             onSetThreshold=${(elKey, side, value) => setThresholdOverride(inst.id, it.id, elKey, side, value)} />
+            `;
+          })}
+          ${!isCollapsed && (inst.items || []).length === 0 && html`
             <div class="cat-row"><span class="label">No items discovered. Click Re-discover to fetch.</span></div>
           `}
           ${rowError[inst.id] && html`<div class="cat-row"><span class="label form-error">${rowError[inst.id]}</span></div>`}
         </div>
-      `)}
+      `;})}
       <button class="btn btn-ghost cat-add-btn" onClick=${() => setWizardOpen(true)}>+ Add instance</button>
       ${wizardOpen && html`
         <${AddInstanceWizard}
@@ -435,7 +542,26 @@ function CatalogTab({ settings, editLocal, saveSettings, csrfToken, loadError })
   `;
 }
 
-function CatalogRow({ instanceId, item, onToggle, onRename }) {
+// Threshold-capable element keys we surface for editing. Anything else (text,
+// events, link, info, etc.) is informational and has no severity contribution.
+const THRESHOLD_KEY_LABEL = {
+  cpu: 'CPU %', mem: 'Memory %', disk: 'Disk %',
+  response_time: 'Response time (ms)',
+  uptime_24h: 'Uptime 24h %', uptime_7d: 'Uptime 7d %',
+  uptime_30d: 'Uptime 30d %', uptime_90d: 'Uptime 90d %',
+};
+function thresholdableElements(stateItem) {
+  if (!stateItem || !Array.isArray(stateItem.elements)) return [];
+  const out = [];
+  for (const el of stateItem.elements) {
+    if (!el || typeof el.key !== 'string') continue;
+    if (THRESHOLD_KEY_LABEL[el.key]) out.push(el);
+  }
+  return out;
+}
+
+function CatalogRow({ instanceId, item, onToggle, onRename, onSetThreshold,
+                     thresholdsOpen, onToggleThresholds, stateItem, itemConfigEntry }) {
   // Local input state so we don't POST on every keystroke; commit on blur or Enter.
   const [draft, setDraft] = useState(item.displayName ?? '');
   const initial = useRef(item.displayName ?? '');
@@ -444,7 +570,10 @@ function CatalogRow({ instanceId, item, onToggle, onRename }) {
     initial.current = item.displayName ?? '';
   }, [item.displayName]);
 
-  const isChild = item.id.includes('::');
+  const isChild  = item.id.includes('::');
+  const elements = thresholdableElements(stateItem);
+  const canEditThresholds = item.visible && elements.length > 0;
+  const overrides = (itemConfigEntry && itemConfigEntry.thresholdOverrides) || {};
 
   function commit() {
     if (draft === initial.current) return;
@@ -464,8 +593,58 @@ function CatalogRow({ instanceId, item, onToggle, onRename }) {
              onBlur=${commit}
              onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }} />
       <span class="hint">${item.id}</span>
+      ${canEditThresholds && html`
+        <button class="iconbtn cat-thresholds-btn" onClick=${onToggleThresholds}
+                aria-expanded=${String(!!thresholdsOpen)}
+                aria-label=${thresholdsOpen ? 'Hide thresholds' : 'Edit thresholds'}
+                title="Edit thresholds">
+          <${Icon} name="sliders" width="14" height="14" />
+        </button>`}
     </div>
+    ${thresholdsOpen && canEditThresholds && html`
+      <div class="cat-thresholds" data-child=${isChild ? 'true' : 'false'}>
+        <div class="cat-thresholds-h">
+          <span>Thresholds</span>
+          <span class="hint">leave blank for defaults</span>
+        </div>
+        ${elements.map(el => {
+          const ov = overrides[el.key] || {};
+          return html`
+            <div class="cat-threshold-row" key=${el.key}>
+              <span class="cat-threshold-name">${THRESHOLD_KEY_LABEL[el.key]}</span>
+              <label class="cat-threshold-field">
+                <span>warn</span>
+                <input class="input" type="number" step="any"
+                       value=${ov.warn ?? ''}
+                       placeholder=${defaultForLabel(el.key, 'warn')}
+                       onBlur=${e => onSetThreshold(el.key, 'warn', e.target.value)} />
+              </label>
+              <label class="cat-threshold-field">
+                <span>crit</span>
+                <input class="input" type="number" step="any"
+                       value=${ov.crit ?? ''}
+                       placeholder=${defaultForLabel(el.key, 'crit')}
+                       onBlur=${e => onSetThreshold(el.key, 'crit', e.target.value)} />
+              </label>
+            </div>
+          `;
+        })}
+      </div>
+    `}
   `;
+}
+
+// Surface the server-side defaults from Evaluator::DEFAULT_THRESHOLDS as
+// placeholder text so admins know what they're overriding. Uptime windows
+// have no default; the placeholder is empty.
+function defaultForLabel(elKey, side) {
+  const t = {
+    cpu:           { warn: 80, crit: 95 },
+    mem:           { warn: 80, crit: 95 },
+    disk:          { warn: 85, crit: 95 },
+    response_time: { warn: 1000, crit: 5000 },
+  }[elKey];
+  return t ? String(t[side]) : '';
 }
 
 /* ── Display Order tab ── */
@@ -1153,6 +1332,24 @@ export function OnboardOverlay({ onSuccess }) {
 }
 
 /* ── About modal ── */
+const REPO_URL = 'https://github.com/appulize/simple-status-page';
+
+function fmtAge(sec) {
+  if (sec === null || sec === undefined) return '—';
+  if (sec < 60)    return `${Math.round(sec)}s ago`;
+  if (sec < 3600)  return `${Math.round(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.round(sec / 3600)}h ago`;
+  return `${Math.round(sec / 86400)}d ago`;
+}
+
+function fmtUptime(sec) {
+  if (sec === null || sec === undefined) return '—';
+  if (sec < 60)    return `${sec}s`;
+  if (sec < 3600)  return `${Math.floor(sec / 60)}m`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+  return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
+}
+
 export function AboutModal({ onClose, itemCount = 0 }) {
   const [meta, setMeta] = useState(null);
   useEffect(() => {
@@ -1168,10 +1365,13 @@ export function AboutModal({ onClose, itemCount = 0 }) {
         </p>
         <dl class="about-stats">
           <div><dt>Version</dt><dd class="mono">${meta?.version || '—'}</dd></div>
+          <div><dt>Schema</dt><dd class="mono">v${meta?.schemaVersion ?? '—'}</dd></div>
           <div><dt>Items</dt><dd>${itemCount} visible</dd></div>
+          <div><dt>Process uptime</dt><dd>${fmtUptime(meta?.uptimeSec)}</dd></div>
+          <div><dt>Cache rebuilt</dt><dd>${fmtAge(meta?.cacheAgeSec)}</dd></div>
         </dl>
         <div class="modal-actions">
-          <a class="link-btn" href="#" onClick=${e => e.preventDefault()}>
+          <a class="link-btn" href=${REPO_URL} target="_blank" rel="noopener noreferrer">
             Source on GitHub <${Icon} name="external" />
           </a>
         </div>

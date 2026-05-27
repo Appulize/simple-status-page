@@ -19,7 +19,13 @@ test('about modal: opens with version, ESC closes', async ({ page }, testInfo) =
   await shot(page, testInfo, 'about-open');
 
   await expect(about.locator('dt', { hasText: 'Version' })).toBeVisible();
-  await expect(about.locator('dd.mono')).not.toHaveText('—');
+  // Several rows render dd.mono after Sprint 7 added Schema + Cache rebuilt —
+  // disambiguate by walking from the dt label to its sibling dd.
+  const versionDd = about.locator('dt', { hasText: 'Version' }).locator('xpath=following-sibling::dd[1]');
+  const schemaDd  = about.locator('dt', { hasText: 'Schema' }).locator('xpath=following-sibling::dd[1]');
+  await expect(versionDd).not.toHaveText('—');
+  await expect(schemaDd).toHaveText(/^v\d+$/);
+  await expect(about.getByRole('link', { name: /source on github/i })).toHaveAttribute('href', /github\.com\/appulize\/simple-status-page/);
 
   await page.keyboard.press('Escape');
   await about.waitFor({ state: 'hidden' });

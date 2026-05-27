@@ -49,6 +49,45 @@ function resolveTheme(t) {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+// Updates document.title in the form "(N down) · Status · {siteTitle}" when
+// monitors are down, otherwise "Status · {siteTitle}". No-ops when unchanged
+// so devtools / tab-history stays clean across rapid polls.
+function useDocumentTitle(summary) {
+  useEffect(() => {
+    const base = document.title.split(' · ').slice(-1)[0] || 'Status';
+    const next = summary.down > 0
+      ? `(${summary.down} down) · Status · ${base}`
+      : `Status · ${base}`;
+    if (document.title !== next) document.title = next;
+  }, [summary.down, summary.degraded]);
+}
+
+// Swaps the favicon to an SVG bolt tinted by the worst severity. Uses a Blob
+// URL because browsers cache the favicon by URL — the URL must change for the
+// new colour to actually paint. Revokes the prior URL on each change.
+function useFaviconTint(summary) {
+  const lastUrlRef = useRef('');
+  useEffect(() => {
+    const fill =
+      summary.down     > 0 ? 'oklch(60% 0.18 22)'  :   // --down
+      summary.degraded > 0 ? 'oklch(72% 0.14 75)'  :   // --warn
+                             'oklch(62% 0.14 150)';     // --ok
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${fill}" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    let link = document.querySelector('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.type = 'image/svg+xml';
+    link.href = url;
+    if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+    lastUrlRef.current = url;
+  }, [summary.down, summary.degraded]);
+}
+
 function App() {
   const [overlay, setOverlay] = useState(null);
   const [data, setData] = useState(null);   // null = loading, false = error
@@ -57,6 +96,20 @@ function App() {
   const [saving, setSaving] = useState(false); // true after a settings save until next /api/state lands
   const [auth, setAuth] = useState({ authenticated: false, firstRun: false, csrfToken: '' });
   const [serverDefaults, setServerDefaults] = useState(null);
+  // Track which control opened each overlay so closing returns focus there.
+  const openerRef = useRef(null);
+  const settingsBtnRef = useRef(null);
+  const loginBtnRef    = useRef(null);
+  const aboutBtnRef    = useRef(null);
+  function openOverlay(name, opener) {
+    openerRef.current = opener?.current || document.activeElement;
+    setOverlay(name);
+  }
+  function closeOverlay() {
+    setOverlay(null);
+    // Defer focus return until after the overlay unmounts so the focus call lands.
+    requestAnimationFrame(() => openerRef.current?.focus?.());
+  }
 
   const [prefs, setPref] = usePrefs(serverDefaults, auth.authenticated, auth.csrfToken);
 
@@ -113,7 +166,7 @@ function App() {
   // ESC closes overlay (but not the onboard overlay — must complete setup)
   useEffect(() => {
     const h = e => {
-      if (e.key === 'Escape' && overlay !== 'onboard') setOverlay(null);
+      if (e.key === 'Escape' && overlay !== 'onboard') closeOverlay();
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
@@ -134,6 +187,8 @@ function App() {
   const meta  = data?.meta  ?? {};
   const s = useMemo(() => severitySummary(items), [items]);
   const headline = heroHeadline(s);
+  useDocumentTitle(s);
+  useFaviconTint(s);
   // Only flag as visibly stale when the cache age has exceeded the refresh
   // interval — short windows of staleness are part of normal stale-while-
   // revalidate operation and shouldn't pop a banner.
@@ -141,7 +196,7 @@ function App() {
   const ageSec     = meta.staleSince ? Math.floor(Date.now() / 1000) - meta.staleSince : 0;
   const isStale    = meta.freshness === 'stale' && ageSec > refreshSec;
 
-  const close = () => setOverlay(null);
+  const close = closeOverlay;
 
   return html`
     <div class="page">
@@ -167,14 +222,16 @@ function App() {
             ? html`<button class="iconbtn" aria-label="Sign out" onClick=${handleLogout}>
                 <${Icon} name="unlock" />
               </button>`
-            : html`<button class="iconbtn" aria-label="Sign in" onClick=${() => setOverlay('login')}>
+            : html`<button class="iconbtn" aria-label="Sign in" ref=${loginBtnRef}
+                           onClick=${() => openOverlay('login', loginBtnRef)}>
                 <${Icon} name="lock" />
               </button>`
           }
-          <button class="iconbtn" aria-label="Settings" onClick=${() => setOverlay('settings')}>
+          <button class="iconbtn" aria-label="Settings" ref=${settingsBtnRef}
+                  onClick=${() => openOverlay('settings', settingsBtnRef)}>
             <${Icon} name="cog" />
           </button>
-          <button class="menuchip" onClick=${() => setOverlay('about')}>
+          <button class="menuchip" ref=${aboutBtnRef} onClick=${() => openOverlay('about', aboutBtnRef)}>
             <${Icon} name="info" width="14" height="14" />
             <span>About</span>
             <span class="menuchip-countdown">
@@ -184,7 +241,8 @@ function App() {
         </div>
       </header>
 
-      <section class="hero" data-incident=${(s.down > 0 || s.degraded > 0) ? 'true' : 'false'}>
+      <section class="hero" data-incident=${(s.down > 0 || s.degraded > 0) ? 'true' : 'false'}
+               role="status" aria-live="polite" aria-atomic="true">
         <div class="hero-eyebrow" data-state=${headline.tone}>
           <span class="pulse" />
           <span>${
@@ -255,7 +313,7 @@ function App() {
       <footer class="footer">
         <span>© ${new Date().getFullYear()}</span>
         <span class="footer-links">
-          <a href="#" onClick=${e => { e.preventDefault(); setOverlay('about'); }}>About</a>
+          <a href="#" onClick=${e => { e.preventDefault(); openOverlay('about', { current: e.currentTarget }); }}>About</a>
           <a href="/api/health">Health</a>
           <a href="/api/state">JSON</a>
         </span>
@@ -264,6 +322,7 @@ function App() {
       ${overlay === 'settings' && html`
         <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close}
                             authenticated=${auth.authenticated} csrfToken=${auth.csrfToken}
+                            stateItems=${items}
                             onSaved=${() => { setSaving(true); setRefreshNonce(n => n + 1); }} />`}
       ${overlay === 'login'    && html`<${LoginModal}     onClose=${close} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'onboard'  && html`<${OnboardOverlay} onSuccess=${handleAuthSuccess} />`}

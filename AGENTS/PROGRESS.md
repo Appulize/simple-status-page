@@ -322,3 +322,52 @@ Goal was Sprint 6 (Settings/Catalog APIs), but the user opened the page and noth
 **Verification:** `npm run test:e2e` → 19/19 pass in 41 s on the author's machine (Beszel creds in `.env`); 18/19 with skip on a fresh checkout. `php tests/run.php` → 151/151 still pass. HTML report at `playwright-report/`, numbered screenshots at `test-results/<test-name>/NN-label.png`.
 
 ---
+
+## 2026-05-27 — Step 7: Threshold UI, About modal, title/favicon, a11y, README, tree-collapse
+
+Closed the v1 gap to PLAN.md before a 1.0 cut. All planned items shipped.
+
+**Step 7.1 — Threshold editing UI:**
+- `src/Config/ThresholdValidator.php` — per-element-key bounds (cpu/mem/disk 0–100, response_time 0–300000, uptime 0–100), enforces warn ≤ crit (gauge/counter) or warn ≥ crit (uptime, where lower ratio is worse). Drops empty pairs + collapses empty objects. Rejects unknown element keys.
+- `SettingsValidator` wires through `ThresholdValidator::validate($incoming['itemConfig'])` and rejects with 400 on violation.
+- `Aggregator::applyThresholdOverrides()` merges `itemConfig.<instanceId:itemId>.thresholdOverrides.<elementKey>` into `element.thresholds` before evaluation (Evaluator already prefers explicit thresholds over its defaults table).
+- `Aggregator::applyUserTransforms()` bails (returns null → forces full regen) if any item carries thresholdOverrides — the severity baked into cached items would otherwise be wrong.
+- **UI:** Catalog row gets a sliders icon when the live state item has threshold-capable elements (gauge/counter/uptime). Click expands an inline subpanel with warn/crit inputs per element key, showing the server defaults as placeholders. Edits flow through `editLocal` (batched) like the rest of Catalog.
+- **Tests:** new `tests/ThresholdValidatorTest.php` (24 assertions, including the SettingsValidator round-trip). New e2e spec `21-threshold-editing.spec.ts` covers the happy path + the 400-on-bad-ordering path.
+- **Bug found during e2e:** PHP's `(object) []` (an empty PHP array) round-trips through JSON as a JS Array, not Object. Setting `arr['key']` on an Array works locally but JSON.stringify silently drops the named property. `setThresholdOverride` now normalises Array → Object whenever it touches the itemConfig sub-tree. Same hazard surfaces anywhere a default-empty container in `Store::defaults()` later gets keyed access — flagged for future map fields.
+
+**Step 7.2 — About modal real content:**
+- `/api/health` now also returns `schemaVersion` (from `Store::read()`) + `cacheAgeSec` (now − `Cache::cachedAt()` or null).
+- About modal renders Version, Schema (`v<N>`), Items, Process uptime (formatted), and Cache rebuilt (relative). Source link points at `https://github.com/appulize/simple-status-page` with `target=_blank rel=noopener noreferrer`.
+
+**Step 7.3 — Dynamic title + favicon tint:**
+- `useDocumentTitle(summary)` rewrites `document.title` to `(N down) · Status · {siteTitle}` when `down > 0`, otherwise `Status · {siteTitle}`. Keyed on `down`/`degraded` and short-circuits on unchanged values to keep devtools quiet.
+- `useFaviconTint(summary)` regenerates an SVG bolt favicon coloured by worst severity using the OKLCH constants from `app.css`. Uses `Blob` + `URL.createObjectURL`; revokes the prior URL each change to avoid leaks. URL changes each tint shift so browser favicon caches don't pin the old colour.
+
+**Step 7.4 — Accessibility pass:**
+- Hero `<section>` gains `role="status" aria-live="polite" aria-atomic="true"` so AT users hear severity transitions.
+- Settings drawer tab strip is now `role="tablist"` with each tab `role="tab" aria-selected aria-current tabIndex={0|-1}`. Arrow-left / arrow-right / Home / End rotate focus; roving focus follows the active tab via a `useEffect` keyed on `tab` + a `focusOnTabChange` ref so click-to-switch doesn't steal focus from the content panel.
+- `openOverlay` in App.js stashes the trigger element in `openerRef`; `closeOverlay` returns focus via `requestAnimationFrame` after the overlay unmounts. ESC handler and footer About link both route through these helpers.
+- Login/Onboard modals' `autoFocus` already focuses the password input on open; verified the focus return path on close.
+
+**Step 7.5 — README rewrite + dark screenshot:**
+- Full rewrite of `README.md` per PLAN: features, requirements, quick-start, Caddy + permissions, providers (with explicit `SHARE_ALL_SYSTEMS` note for Beszel), updating, backup, recovery via clearing `auth.passwordHash`, file layout, testing.
+- New `tests/e2e/specs/20-screenshot-generator.spec.ts` seeds a 6-card dataset (mix of operational/degraded/down/paused with realistic CPU/mem/response-time/uptime elements) and writes `docs/screenshots/dashboard-dark.png` (1280×986, ~95 KB). Dark theme pinned via `addInitScript` so `applyPrefs` runs with it on first paint.
+
+**Step 7.6 — Per-viewer Catalog tree-expanded state:**
+- `simplestatus.catalog.collapsed.v1` localStorage Set tracks collapsed instance groups. Each group header is a button with chevron + aria-expanded; toggling persists immediately. v1's "everything expanded every drawer open" is gone.
+
+**Verification:**
+- `php tests/run.php` → **175/175** pass (was 151; +24 from ThresholdValidatorTest).
+- `npm run test:e2e` → **22/22** pass in ~47 s (was 19; +3: screenshot generator, two threshold-editing specs).
+- `bash tests/inline-style-check.sh` + `bash tests/css-class-check.sh` clean.
+- `node --check` clean for all JS modules.
+
+**Files touched:**
+- New: `src/Config/ThresholdValidator.php`, `tests/ThresholdValidatorTest.php`, `tests/e2e/specs/20-screenshot-generator.spec.ts`, `tests/e2e/specs/21-threshold-editing.spec.ts`, `docs/screenshots/dashboard-dark.png`.
+- Modified: `src/Config/SettingsValidator.php` (thresholdOverrides plumbing), `src/State/Aggregator.php` (apply overrides + bail-on-fast-path), `public/api/health.php` (+schemaVersion +cacheAgeSec), `public/assets/app.js` (useDocumentTitle / useFaviconTint / openerRef / closeOverlay focus return / openOverlay), `public/assets/components/overlays.js` (CatalogTab collapse + thresholds subpanel, About modal rewrite, Drawer tab a11y, stateItems prop), `public/assets/icons.js` (sliders + chevron-down/right), `public/assets/app.css` (.cat-group-toggle + .cat-thresholds suite), `public/index.php` (unchanged), `tests/e2e/specs/17-about-modal.spec.ts` (disambiguated dd.mono locator), `README.md` (full rewrite).
+- Deleted: `AGENTS/STEP7-PLAN.md` (plan executed).
+
+**Bug worth remembering:** PHP `(object) []` → JSON `[]` → JS `Array`. Named-key access works in-memory but `JSON.stringify` drops the keys. Any frontend mutation of a default-empty container in `Store::defaults()` should `Array.isArray(x) ? {} : x` first. Currently affected: `itemConfig`, `displayOrder` (this one is intentionally an array). Future map-shaped fields (e.g. instance.config) follow the same pattern — server defaults need to be `(object) []` AND the JS writer needs to coerce.
+
+---

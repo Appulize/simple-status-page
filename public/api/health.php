@@ -2,7 +2,9 @@
 declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
+use App\Config\Store;
 use App\Http\Json;
+use App\State\Cache;
 use App\Util\Time;
 
 sendSecurityHeaders();
@@ -17,9 +19,15 @@ if ($startedAt === false) {
     $startedAt = Time::now();
 }
 
+$cachedAt = (new Cache())->cachedAt();
+$cacheAgeSec = $cachedAt === null ? null : max(0, Time::now() - $cachedAt);
+$schemaVersion = (int) (Store::read()['schemaVersion'] ?? 1);
+
 Json::ok([
-    'ok'        => true,
-    'time'      => Time::now(),
-    'version'   => APP_VERSION,
-    'uptimeSec' => max(0, Time::now() - $startedAt),
+    'ok'            => true,
+    'time'          => Time::now(),
+    'version'       => APP_VERSION,
+    'uptimeSec'     => max(0, Time::now() - $startedAt),
+    'schemaVersion' => $schemaVersion,
+    'cacheAgeSec'   => $cacheAgeSec,
 ]);

@@ -56,6 +56,13 @@ class SettingsValidator
             }
         }
 
+        // Validate per-item threshold overrides.
+        $tv = ThresholdValidator::validate($incoming['itemConfig']);
+        if (!$tv['ok']) {
+            return ['ok' => false, 'status' => 400, 'error' => $tv['error'] ?? 'Invalid thresholdOverrides.'];
+        }
+        $incoming['itemConfig'] = $tv['cleaned'];
+
         return ['ok' => true, 'merged' => $incoming];
     }
 }

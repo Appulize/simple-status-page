@@ -249,6 +249,7 @@ class Aggregator
                 if ($override !== '') {
                     $item['displayName'] = $override;
                 }
+                $item = $this->applyThresholdOverrides($item, $itemConfig);
                 $allItems[] = $item;
             }
 
@@ -297,6 +298,14 @@ class Aggregator
     private function applyUserTransforms(array $cachedItems, array $settings): ?array
     {
         $itemConfig = Safe::arr(Safe::get($settings, 'itemConfig'));
+
+        // Threshold overrides changing would invalidate the severity baked into
+        // cached items — force a full regen in that case.
+        foreach ($itemConfig as $cfg) {
+            if (is_array($cfg) && !empty($cfg['thresholdOverrides'])) {
+                return null;
+            }
+        }
 
         // Index cached items by (instanceId, itemId).
         $byKey = [];
@@ -348,6 +357,43 @@ class Aggregator
         ], JSON_THROW_ON_ERROR)), 0, 16) . '"';
 
         return ['items' => $ordered, 'etag' => $etag];
+    }
+
+    /**
+     * Merge itemConfig.thresholdOverrides into element.thresholds for this item.
+     *
+     * @param array<string, mixed> $item
+     * @param array<string, mixed> $itemConfig
+     * @return array<string, mixed>
+     */
+    private function applyThresholdOverrides(array $item, array $itemConfig): array
+    {
+        $itemKey   = Safe::str($item['instanceId'] ?? '') . ':' . Safe::str($item['itemId'] ?? '');
+        $overrides = Safe::arr(Safe::get($itemConfig, $itemKey . '.thresholdOverrides'));
+        if ($overrides === [] || !is_array($item['elements'] ?? null)) {
+            return $item;
+        }
+        foreach ($item['elements'] as $i => $el) {
+            if (!is_array($el)) {
+                continue;
+            }
+            $elKey = Safe::str($el['key'] ?? '');
+            if ($elKey === '' || !isset($overrides[$elKey]) || !is_array($overrides[$elKey])) {
+                continue;
+            }
+            $ov     = $overrides[$elKey];
+            $merged = is_array($el['thresholds'] ?? null) ? $el['thresholds'] : [];
+            if (isset($ov['warn']) && (is_int($ov['warn']) || is_float($ov['warn']))) {
+                $merged['warn'] = (float) $ov['warn'];
+            }
+            if (isset($ov['crit']) && (is_int($ov['crit']) || is_float($ov['crit']))) {
+                $merged['crit'] = (float) $ov['crit'];
+            }
+            if ($merged !== []) {
+                $item['elements'][$i]['thresholds'] = $merged;
+            }
+        }
+        return $item;
     }
 
     /**
