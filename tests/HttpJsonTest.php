@@ -43,3 +43,9 @@ check($d['refreshIntervalSec'] === 30,         'config: refreshIntervalSec round
 check($d['appearance']['theme'] === 'auto',    'config: appearance.theme round-trips');
 check($d['appearance']['sparklines'] === true, 'config: sparklines is bool true');
 check($d['firstRun'] === false,                'config: firstRun is bool false');
+
+// Admin-only appearance fields (accent/cardstyle/mark) must round-trip
+// — these feed anonymous viewers from /api/config.
+check($d['appearance']['accent']    === 'mint',   'config: appearance.accent round-trips (admin-only)');
+check($d['appearance']['cardstyle'] === 'paper',  'config: appearance.cardstyle round-trips (admin-only)');
+check($d['appearance']['mark']      === 'stripe', 'config: appearance.mark round-trips (admin-only)');

@@ -241,9 +241,18 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Loading / empty state ───────────────────────────────────── */
 .loading-grid {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 200px; color: var(--ink-3); font-size: 13px;
 }
+.loading-grid--saving { color: var(--ink-2); }
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  border-top-color: var(--accent);
+  animation: spin 700ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Footer ──────────────────────────────────────────────────── */
 .footer {
@@ -662,6 +671,19 @@ a { color: inherit; text-decoration: none; }
 .drag-row .grip { color: var(--ink-4); display: inline-flex; }
 .drag-row .grip svg { width: 14px; height: 14px; }
 .drag-row .src { color: var(--ink-3); font-size: 11px; }
+.drag-row[data-dragging="true"] { opacity: 0.35; }
+/* Drop indicator must not change layout — margin shifts would move the pointer
+   into a neighbouring row and flicker the hover state. Outline-style accent is
+   rendered outside the box model. */
+.drag-row[data-hover="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: -4px;
+  height: 3px; background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.drag-row { position: relative; }
 
 /* Checkbox */
 .checkbox {
@@ -698,6 +720,55 @@ a { color: inherit; text-decoration: none; }
 }
 .auth-method-sub { color: var(--ink-3); font-size: 12px; margin-top: 3px; }
 .auth-method-sub a { color: var(--accent); }
+.auth-method-l   { flex: 1; min-width: 0; }
+
+/* Inline catalog row rename input */
+.cat-rename {
+  flex: 1; min-width: 0;
+  padding: 4px 8px; font-size: 12px;
+  background: transparent;
+}
+.cat-rename:focus { background: var(--bg); }
+
+/* Token reveal + rotate row */
+.token-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.token-row .input { flex: 1; min-width: 0; font-size: 12px; padding: 6px 8px; }
+
+/* Client-cert subjects editor */
+.cert-editor { margin-top: 12px; }
+.cert-editor .form-label,
+.form-label { font-size: 12px; color: var(--ink-2); display: block; margin: 12px 0 6px; }
+
+/* Add-instance wizard */
+.wizard-steps {
+  display: flex; gap: 4px; margin: 8px 0 18px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.wizard-step {
+  padding: 6px 10px; border-radius: 999px;
+  background: var(--bg-sunk); color: var(--ink-3);
+  border: .5px solid var(--line);
+}
+.wizard-step[data-active="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.wizard-step[data-done="true"]   { color: var(--ink-2); }
+.wizard-actions { margin-top: 18px; }
+.wizard-tree    { max-height: 340px; overflow: auto; }
+
+.provider-pick {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border: .5px solid var(--line);
+  border-radius: var(--radius-sm); cursor: pointer;
+  margin-bottom: 8px;
+}
+.provider-pick[data-active="true"] { border-color: var(--ink); }
+.provider-pick > span { display: flex; flex-direction: column; gap: 2px; }
+.provider-pick small { color: var(--ink-3); font-size: 11px; }
+
+/* Password change form */
+.form-success {
+  margin: 0 0 12px; font-size: 13px;
+  color: var(--ok-ink);
+}
 
 /* Toggle switch */
 .switch {

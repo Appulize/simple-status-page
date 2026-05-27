@@ -82,6 +82,10 @@ Celebrate only what matters: shipping, solving genuinely hard problems, metrics 
 No excessive bullet points, no unprompted headers, no emoji. Prose is usually clearer than structure for short answers.
 Write down sprint-progress to AGENTS/PROGRESS.md, but only for actual changes, not simple questions.
 
+# 7a. Manual smoke-test handoffs
+
+When you need the user to verify something manually (UI smoke test, "does this look right", post-change confirmation), always use `AskUserQuestion` with concrete option choices ("works", "broken: <symptom>", "skipped", etc.). Never list manual test steps as a plain markdown response — the user wants to answer inline, not free-type. Reserve manual smoke checkpoints for major milestones, not 1-pixel tweaks.
+
 # 8. When to ask, when to proceed
 
 Ask before proceeding when:

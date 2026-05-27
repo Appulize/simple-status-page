@@ -1,4 +1,4 @@
-import { html, render, useState, useEffect, useMemo } from 'htm/preact';
+import { html, render, useState, useEffect, useMemo, useRef } from 'htm/preact';
 import { Icon } from '/assets/icons.js';
 import { usePrefs, applyPrefs } from '/assets/store.js';
 import { fmtRelative } from '/assets/components/elements.js';
@@ -52,7 +52,9 @@ function resolveTheme(t) {
 function App() {
   const [overlay, setOverlay] = useState(null);
   const [data, setData] = useState(null);   // null = loading, false = error
-  const [etag, setEtag] = useState('');
+  const etagRef = useRef('');                // ref so fetchState can read latest without re-binding
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [saving, setSaving] = useState(false); // true after a settings save until next /api/state lands
   const [auth, setAuth] = useState({ authenticated: false, firstRun: false, csrfToken: '' });
   const [serverDefaults, setServerDefaults] = useState(null);
 
@@ -82,29 +84,31 @@ function App() {
   // picked up without waiting for the next normal poll.
   useEffect(() => {
     let intervalTimer, quickTimer;
-    async function fetchState() {
+    async function fetchState(force = false) {
       try {
-        const headers = etag ? { 'If-None-Match': etag } : {};
+        const headers = (!force && etagRef.current) ? { 'If-None-Match': etagRef.current } : {};
         const res = await fetch('/api/state', { headers });
         if (res.status === 304) return;
         if (!res.ok) { setData(false); return; }
         const e = res.headers.get('ETag') || '';
-        if (e) setEtag(e);
+        if (e) etagRef.current = e;
         const json = await res.json();
         setData(json);
+        setSaving(false);
         if (json?.meta?.freshness === 'stale') {
           clearTimeout(quickTimer);
-          quickTimer = setTimeout(fetchState, 2000);
+          quickTimer = setTimeout(() => fetchState(false), 2000);
         }
       } catch {
         if (data === null) setData(false);
       }
     }
-    fetchState();
+    // Force a fresh fetch when triggered by a settings save (refreshNonce bump).
+    fetchState(refreshNonce > 0);
     const interval = Math.max(5000, (prefs.refreshInterval || 30) * 1000);
-    intervalTimer = setInterval(fetchState, interval);
+    intervalTimer = setInterval(() => fetchState(false), interval);
     return () => { clearInterval(intervalTimer); clearTimeout(quickTimer); };
-  }, [prefs.refreshInterval]);
+  }, [prefs.refreshInterval, refreshNonce]);
 
   // ESC closes overlay (but not the onboard overlay — must complete setup)
   useEffect(() => {
@@ -237,7 +241,12 @@ function App() {
 
       ${data === null && html`<div class="loading-grid">Connecting…</div>`}
       ${data === false && html`<div class="loading-grid">Could not reach /api/state.</div>`}
-      ${data && html`
+      ${data && saving && html`
+        <div class="loading-grid loading-grid--saving" aria-busy="true">
+          <span class="spinner" /> Saving and reloading…
+        </div>
+      `}
+      ${data && !saving && html`
         <div class="grid">
           ${items.map(it => html`<${ItemCard} key=${it.instanceId + ':' + it.itemId} item=${it} />`)}
         </div>
@@ -253,7 +262,9 @@ function App() {
       </footer>
 
       ${overlay === 'settings' && html`
-        <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close} authenticated=${auth.authenticated} />`}
+        <${SettingsDrawer} prefs=${prefs} setPref=${setPref} onClose=${close}
+                            authenticated=${auth.authenticated} csrfToken=${auth.csrfToken}
+                            onSaved=${() => { setSaving(true); setRefreshNonce(n => n + 1); }} />`}
       ${overlay === 'login'    && html`<${LoginModal}     onClose=${close} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'onboard'  && html`<${OnboardOverlay} onSuccess=${handleAuthSuccess} />`}
       ${overlay === 'about'    && html`<${AboutModal}     onClose=${close} itemCount=${items.length} />`}

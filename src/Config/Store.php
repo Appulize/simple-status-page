@@ -84,6 +84,18 @@ class Store
         }
     }
 
+    /** Returns the settings.json mtime as a Unix timestamp, or 0 if absent. */
+    public static function mtime(): int
+    {
+        $path = self::path();
+        if (!is_file($path)) {
+            return 0;
+        }
+        clearstatcache(true, $path);
+        $m = @filemtime($path);
+        return $m === false ? 0 : $m;
+    }
+
     public static function isFirstRun(): bool
     {
         if (!is_file(self::path())) {

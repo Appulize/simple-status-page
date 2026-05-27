@@ -245,3 +245,50 @@ Goal was Sprint 6 (Settings/Catalog APIs), but the user opened the page and noth
 **Sprint 6 still pending.** None of the planned Sprint 6 endpoints (`GET/POST /api/settings`, `POST /api/discover`, `POST /api/password`, `/api/providers`, token rotate, `/api/health` version/uptime) shipped yet, nor the Catalog/Order/Auth tab wiring. The Appearance work landed early as a vertical slice; Sprint 6's `POST /api/settings` will eventually subsume `/api/appearance`.
 
 ---
+
+## 2026-05-27 — Step 6: Settings + Discovery APIs and drawer wiring
+
+**Backend endpoints shipped:**
+- `/api/health` — now `{ok, time, version, uptimeSec}`; `APP_VERSION` constant in `bootstrap.php`, uptime from `cache/started_at` mtime sentinel (first-touch on first health hit).
+- `GET /api/settings` — auth-gated, returns full settings doc + `meta.mtime` + ETag (`"<mtime>"`). `Cache-Control: private, no-store`.
+- `POST /api/settings` — auth + CSRF (session) OR bearer-exempt. Requires `If-Match: <mtime>`; 428 if missing, 409 with the current server doc embedded on stale match. Validation via the new `App\Config\SettingsValidator::validate($incoming, $current)` — required top-level keys, lockout guard (≥1 auth method enabled), `schemaVersion` + `passwordHash` server-controlled, empty bearer-token payload preserves prior token.
+- `GET /api/providers` — auth-gated; returns Registry-introspected providers with `configSchema()` for the wizard.
+- `POST /api/discover` — auth + CSRF. Accepts `{instanceId}` for a saved instance or `{provider, config}` for the wizard. Calls `validate()` then `discover()`; 502 with the upstream error inline on provider failure.
+- `POST /api/password` — auth + CSRF. Verifies current, validates new (≥8), rehashes, destroys session (forces re-login).
+- `POST /api/token/rotate` — auth + CSRF. `bin2hex(random_bytes(32))`, persists in `auth.methods.token.token`, returned once.
+
+**Frontend (overlays.js rewritten end-to-end):**
+- `SettingsDrawer` is now stateful when authenticated. On mount it GETs settings; it tracks `settings` (last server-committed view), `mtime`, and a `draftRef` mutable buffer.
+- Two save paths:
+  - `editLocal(mutator)` — local-only, batched in `draftRef`. Used by Catalog (visibility toggle, rename, rediscover-merge, remove instance). Flushed exactly once on tab change or drawer close via `flushDraft()`. Solves the race where rapid concurrent POSTs clobbered each other via stale If-Match.
+  - `saveSettings(mutator)` — immediate POST. Used by Order tab (per drop), Auth tab toggles, Add-Instance wizard, change password.
+- Conflict modal: 409 surfaces a Reload/Cancel modal; Reload replaces local state with server's current doc.
+- Catalog tab: per-instance group, item-row with visibility checkbox + inline rename (commits on blur/Enter), Re-discover and Remove buttons.
+- Display Order tab: HTML5 drag-and-drop on the flat list of visible items. Drop indicator is an `::before` accent line (no margin → no layout shift → no flicker near row midpoints).
+- Auth tab: 4-method switches with last-method lockout guard (disabled tooltip), Bearer token Reveal/Copy/Rotate, client-cert header-name + allowed-subjects editor, change-password form (current + new + confirm, ≥8).
+- Add-Instance wizard (3 steps): provider picker → config form (rendered from `configSchema`) → tested discovery + reviewable tree → save. Children default unchecked; parents default checked.
+
+**Cache + perceived-latency fixes:**
+- `Aggregator::get()` invalidates the cache when `settings.json` mtime > `cache.cachedAt`. Stale-while-revalidate is bypassed in that case so the user never sees a pre-save items list.
+- Fast path: when settings changed but every currently-visible item is already in the cached items, `applyUserTransforms()` re-applies filter + rename + displayOrder + re-hashes the ETag without touching providers. Newly-visible items still trigger a full synchronous regen.
+- App.js: settings save fires `onSaved` → bumps a `refreshNonce` (forces a no-`If-None-Match` re-fetch of `/api/state`) and sets `saving=true`. A `.loading-grid--saving` spinner replaces the grid until the next state response lands. Clears `saving` on the first successful fetch.
+
+**Tests:**
+- New `tests/SettingsApiTest.php` — `Store::mtime()` round-trip; validator missing-key errors, schemaVersion + passwordHash preservation, lockout guard, token preserve/rotate paths.
+- New `tests/DiscoverApiTest.php` — Registry shape, configSchema integrity per provider, validate() pass/fail without upstream contact.
+- Extended `tests/HttpJsonTest.php` with admin-only appearance field round-trip (accent / cardstyle / mark).
+- 151/151 pass (was 117). `bash tests/inline-style-check.sh` + `bash tests/css-class-check.sh` clean. `node --check` parses both JS modules.
+
+**UX bugs surfaced + fixed during smoke-test:**
+- Aggregator returning stale cache via SWR even after settings change → fast-path + cache invalidation rewrite.
+- Concurrent catalog toggles racing each other → batched local edits, flushed on tab change / drawer close.
+- "Did it save?" anxiety after flush → `Saving and reloading…` spinner overlay until `/api/state` confirms.
+- Drag-and-drop hover flicker near row midpoint → moved drop indicator to `::before` so layout doesn't shift.
+
+**Files touched (estimate):**
+- New: `public/api/{settings,providers,discover,password}.php`, `public/api/token/rotate.php`, `src/Config/SettingsValidator.php`, `tests/SettingsApiTest.php`, `tests/DiscoverApiTest.php`.
+- Modified: `public/api/health.php`, `src/bootstrap.php` (APP_VERSION), `src/Config/Store.php` (mtime()), `src/State/Aggregator.php` (cache-invalidation + fast-path + applyUserTransforms), `public/assets/components/overlays.js` (full rewrite of admin tabs), `public/assets/app.js` (etagRef + refreshNonce + saving state), `public/assets/app.css` (catalog rename input, token row, cert editor, wizard, drag-row drop indicator, spinner), `tests/HttpJsonTest.php` (admin-only appearance assertions), `AGENTS.md` (rule 7a — manual smoke-test handoffs).
+
+**Carry-over to Sprint 7:** see `AGENTS/STEP7-PLAN.md`.
+
+---

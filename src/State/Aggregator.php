@@ -35,24 +35,53 @@ class Aggregator
         $refresh  = Safe::int(Safe::get($settings, 'ui.refreshIntervalSec'), 30);
         $ttl      = Cache::ttlFor($refresh);
 
-        // 1. Fresh cache → return immediately.
-        $fresh = $this->cache->get($ttl);
-        if ($fresh !== null) {
-            return $fresh;
+        // An admin save (visibility toggle, rename, reorder) updates settings.json's
+        // mtime. When that mtime is newer than the cache, neither the fresh nor
+        // the stale-while-revalidate branch is safe to return — the cached items
+        // reflect the pre-save world. Force a synchronous regeneration instead.
+        $settingsMtime = Store::mtime();
+        $cachedAt      = $this->cache->cachedAt();
+        $cacheCurrent  = $cachedAt === null || $settingsMtime <= $cachedAt;
+
+        if ($cacheCurrent) {
+            // 1. Fresh cache → return immediately.
+            $fresh = $this->cache->get($ttl);
+            if ($fresh !== null) {
+                return $fresh;
+            }
+
+            // 2. Stale cache exists → stale-while-revalidate. Return stale instantly,
+            //    kick off a background regen so the next request gets fresh data.
+            $stale = $this->cache->getStale();
+            if ($stale !== null) {
+                $this->spawnBackgroundRegen();
+                $stale['meta']['freshness']  = 'stale';
+                $stale['meta']['staleSince'] = $this->cache->cachedAt();
+                return $stale;
+            }
+        } else {
+            // Settings changed since cache. If every currently-visible item is already
+            // in the cached items, we can re-apply the user-controllable transforms
+            // (visibility filter, displayOrder, displayName overrides) without paying
+            // the provider fetch cost. Only when an item became newly-visible (or a
+            // new instance was added) do we fall through to a full synchronous regen.
+            $cachedAny = $this->cache->getStale();
+            if ($cachedAny !== null && is_array($cachedAny['items'] ?? null)) {
+                $transformed = $this->applyUserTransforms($cachedAny['items'], $settings);
+                if ($transformed !== null) {
+                    $cachedAny['meta']['instanceErrors'] = $cachedAny['meta']['instanceErrors'] ?? (object) [];
+                    $cachedAny['items'] = $transformed['items'];
+                    $cachedAny['meta']['etag'] = $transformed['etag'];
+                    $cachedAny['meta']['freshness']  = 'fresh';
+                    $cachedAny['meta']['staleSince'] = null;
+                    $this->cache->set($cachedAny);
+                    return $cachedAny;
+                }
+            }
         }
 
-        // 2. Stale cache exists → stale-while-revalidate. Return stale instantly,
-        //    kick off a background regen so the next request gets fresh data.
-        $stale = $this->cache->getStale();
-        if ($stale !== null) {
-            $this->spawnBackgroundRegen();
-            $stale['meta']['freshness']  = 'stale';
-            $stale['meta']['staleSince'] = $this->cache->cachedAt();
-            return $stale;
-        }
-
-        // 3. No cache at all (first hit ever, or it was wiped) — block this one
-        //    request to seed the cache. Use the lock for stampede prevention.
+        // 3. No usable cache (first hit, wiped, or invalidated by a settings save)
+        //    — block this one request to (re)seed the cache. Lock for stampede prevention.
         $lockDir = dirname($this->lockPath);
         if (!is_dir($lockDir)) {
             @mkdir($lockDir, 0700, true);
@@ -253,6 +282,72 @@ class Aggregator
             'instanceErrors' => $instanceErrors,
         ], JSON_THROW_ON_ERROR)), 0, 16) . '"';
         return $payload;
+    }
+
+    /**
+     * Fast-path: rebuild a state payload from previously-cached items by filtering
+     * to currently-visible items, applying name overrides, sorting, and recomputing
+     * the ETag — without contacting any provider. Returns null when an item that
+     * is now visible isn't in the cache (caller falls through to full regen).
+     *
+     * @param array<int, array<string, mixed>> $cachedItems
+     * @param array<string, mixed>             $settings
+     * @return array{items: array<int, array<string, mixed>>, etag: string}|null
+     */
+    private function applyUserTransforms(array $cachedItems, array $settings): ?array
+    {
+        $itemConfig = Safe::arr(Safe::get($settings, 'itemConfig'));
+
+        // Index cached items by (instanceId, itemId).
+        $byKey = [];
+        foreach ($cachedItems as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $k = Safe::str($it['instanceId'] ?? '') . '|' . Safe::str($it['itemId'] ?? '');
+            $byKey[$k] = $it;
+        }
+
+        // Build the visibility list from current settings. Apply rename overrides
+        // as we collect. If any visible item lacks a cached entry, bail.
+        $visible = [];
+        foreach (Safe::arr(Safe::get($settings, 'instances')) as $inst) {
+            if (!is_array($inst)) {
+                continue;
+            }
+            $instanceId = Safe::str(Safe::get($inst, 'id'));
+            if ($instanceId === '') {
+                continue;
+            }
+            foreach (Safe::arr(Safe::get($inst, 'items')) as $row) {
+                if (!is_array($row) || !Safe::bool(Safe::get($row, 'visible'), true)) {
+                    continue;
+                }
+                $iid = Safe::str(Safe::get($row, 'id'));
+                if ($iid === '') {
+                    continue;
+                }
+                $key = $instanceId . '|' . $iid;
+                if (!isset($byKey[$key])) {
+                    return null; // newly-visible item not in cache → require fresh fetch
+                }
+                $item = $byKey[$key];
+                $override = Safe::str(Safe::get($itemConfig, $instanceId . ':' . $iid . '.displayName'))
+                    ?: Safe::str(Safe::get($row, 'displayName'));
+                if ($override !== '') {
+                    $item['displayName'] = $override;
+                }
+                $visible[] = $item;
+            }
+        }
+
+        $ordered = $this->applyDisplayOrder($visible, Safe::arr(Safe::get($settings, 'displayOrder')));
+        $etag    = '"' . substr(hash('sha256', (string) json_encode([
+            'items'          => $ordered,
+            'instanceErrors' => [],
+        ], JSON_THROW_ON_ERROR)), 0, 16) . '"';
+
+        return ['items' => $ordered, 'etag' => $etag];
     }
 
     /**

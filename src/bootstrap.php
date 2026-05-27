@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+const APP_VERSION = '0.1.0';
+
 // ── PSR-4 autoloader (App\ → src/) ──────────────────────────────────────────
 spl_autoload_register(function (string $class): void {
     $prefix = 'App\\';
