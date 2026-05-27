@@ -25,4 +25,15 @@ class Registry
     {
         return self::$map;
     }
+
+    /**
+     * Register a provider class under a string id. Used by tests to inject
+     * a deterministic provider; production callers should not need this.
+     *
+     * @param class-string<Provider> $cls
+     */
+    public static function register(string $id, string $cls): void
+    {
+        self::$map[$id] = $cls;
+    }
 }

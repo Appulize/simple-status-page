@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\State;
 
+use App\Util\UrlGuard;
+
 class HttpClient
 {
     public const CONNECT_TIMEOUT = 5;
@@ -19,6 +21,7 @@ class HttpClient
      */
     public function request(string $method, string $url, array $headers = [], ?string $body = null): array
     {
+        UrlGuard::check($url);
         $ch = curl_init();
         if ($ch === false) {
             throw new \RuntimeException('curl_init failed');
@@ -92,6 +95,7 @@ class HttpClient
         $headerBag = [];
 
         foreach ($requests as $key => $req) {
+            UrlGuard::check($req['url']);
             $ch = curl_init();
             if ($ch === false) {
                 throw new \RuntimeException('curl_init failed');

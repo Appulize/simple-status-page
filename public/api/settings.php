@@ -23,11 +23,11 @@ $cfg = Store::read();
 Authenticator::requireAuth($req, $cfg);
 
 if ($method === 'GET') {
-    $mtime = Store::mtime();
+    $version = Store::version();
     Json::ok([
         'settings' => $cfg,
-        'meta'     => ['mtime' => $mtime],
-    ], 200, ['ETag' => '"' . $mtime . '"']);
+        'meta'     => ['mtime' => $version],
+    ], 200, ['ETag' => '"' . $version . '"']);
 }
 
 // POST — CSRF required for session/form auth; bearer-token auth is CSRF-exempt
@@ -44,8 +44,8 @@ $ifMatch = trim((string) $req->header('If-Match'), '"');
 if ($ifMatch === '') {
     Json::error('If-Match header required.', 428);
 }
-$current = Store::mtime();
-if ((string) $current !== $ifMatch) {
+$current = Store::version();
+if ($current !== $ifMatch) {
     http_response_code(409);
     header('Content-Type: application/json');
     echo json_encode([
@@ -71,8 +71,8 @@ if (!($result['ok'] ?? false)) {
 
 Store::write($result['merged']);
 
-$mtime = Store::mtime();
+$version = Store::version();
 Json::ok([
     'ok'   => true,
-    'meta' => ['mtime' => $mtime],
-], 200, ['ETag' => '"' . $mtime . '"']);
+    'meta' => ['mtime' => $version],
+], 200, ['ETag' => '"' . $version . '"']);

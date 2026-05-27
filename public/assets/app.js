@@ -96,6 +96,7 @@ function App() {
   const [saving, setSaving] = useState(false); // true after a settings save until next /api/state lands
   const [auth, setAuth] = useState({ authenticated: false, firstRun: false, csrfToken: '' });
   const [serverDefaults, setServerDefaults] = useState(null);
+  const [siteTitle, setSiteTitle] = useState('');
   // Track which control opened each overlay so closing returns focus there.
   const openerRef = useRef(null);
   const settingsBtnRef = useRef(null);
@@ -117,7 +118,10 @@ function App() {
   useEffect(() => {
     fetch('/api/config')
       .then(r => r.json())
-      .then(json => setServerDefaults({ ...(json.appearance || {}), refreshInterval: json.refreshIntervalSec }))
+      .then(json => {
+        setServerDefaults({ ...(json.appearance || {}), refreshInterval: json.refreshIntervalSec });
+        if (typeof json.siteTitle === 'string') setSiteTitle(json.siteTitle);
+      })
       .catch(() => {});
   }, [auth.authenticated]); // re-fetch after login so admin sees fresh defaults
 
@@ -311,7 +315,7 @@ function App() {
       `}
 
       <footer class="footer">
-        <span>© ${new Date().getFullYear()}</span>
+        <span>© ${new Date().getFullYear()}${siteTitle ? ` · ${siteTitle}` : ''}</span>
         <span class="footer-links">
           <a href="#" onClick=${e => { e.preventDefault(); openOverlay('about', { current: e.currentTarget }); }}>About</a>
           <a href="/api/health">Health</a>

@@ -878,7 +878,14 @@ function AuthTab({ settings, saveSettings, csrfToken, loadError, reload }) {
         <div class="auth-method-l">
           <div class="auth-method-name">Client certificate</div>
           <div class="auth-method-sub">Caddy validates the cert and forwards a header; subject DNs are allowlisted below.</div>
-          ${certEnabled && html`<${CertSubjectsEditor}
+          ${certEnabled && html`
+            <p class="form-warning">
+              <strong>Reverse proxy required.</strong> This method trusts a
+              header. Without <code>header_up X-Client-Cert-Subject {tls_client_subject}</code>
+              (or equivalent) in Caddy, anyone on the network can spoof the
+              header and authenticate. See <code>Caddyfile.example</code>.
+            </p>
+            <${CertSubjectsEditor}
                 settings=${settings}
                 onChangeHeader=${setCertHeaderName}
                 onChangeList=${setAllowedSubjects} />`}

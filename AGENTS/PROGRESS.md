@@ -371,3 +371,41 @@ Closed the v1 gap to PLAN.md before a 1.0 cut. All planned items shipped.
 **Bug worth remembering:** PHP `(object) []` → JSON `[]` → JS `Array`. Named-key access works in-memory but `JSON.stringify` drops the keys. Any frontend mutation of a default-empty container in `Store::defaults()` should `Array.isArray(x) ? {} : x` first. Currently affected: `itemConfig`, `displayOrder` (this one is intentionally an array). Future map-shaped fields (e.g. instance.config) follow the same pattern — server defaults need to be `(object) []` AND the JS writer needs to coerce.
 
 ---
+
+## 2026-05-27 — Pre-1.0 hardening (post-PO/lead-dev review)
+
+Senior PO and senior lead-dev did a v1 go/no-go review and returned a CONDITIONAL GO. This sprint closes every actionable item except the deliberately-deferred first-run-takeover (deemed acceptable: no admin = nothing to protect; admin can re-onboard by clearing `auth.passwordHash`).
+
+**Security:**
+- `POST /api/appearance` is now bearer-CSRF-exempt to match every other mutating endpoint. Token clients no longer get a spurious 403.
+- Optimistic-locking on `/api/settings` switched from filesystem mtime (1-second granularity) to a SHA-256 content hash. Two saves in the same wall-clock second can no longer race past the If-Match check. `Store::version()` is the new accessor; `Store::mtime()` retained for the Aggregator's coarser cache-vs-settings comparison.
+- New `App\Util\UrlGuard` runs before every `HttpClient::request` / `requestMulti`. Denies link-local (`169.254/16`), CGNAT (`100.64/10`), IPv4 multicast/reserved/broadcast/0.0.0.0/8, IPv6 link-local (`fe80::/10`), multicast (`ff00::/8`), ULA (`fc00::/7`), unspecified. RFC1918 + IPv4 loopback intentionally allowed — that's the primary self-hosted use case. DNS-rebinding residual risk documented in `SECURITY.md`.
+- `Backoff::save()` now writes via temp + rename. Concurrent fg/bg workers can no longer leave a torn JSON.
+- `Migrations::run()` hard-fails when on-disk `schemaVersion` exceeds `Migrations::CURRENT` instead of silently passing through. Sets the version when missing.
+- Dev `public/router.php` resolves both static and PHP candidates through `realpath` and refuses anything outside the webroot.
+
+**Frontend safety:**
+- `LinkEl` now whitelists schemes (`http`, `https`, `mailto`, relative, fragment); anything else collapses to `#`. External http(s) links pick up `target="_blank" rel="noopener noreferrer"` and the external icon. Removed the old `preventDefault` hack that made provider links non-clickable.
+- Settings → Auth → Client certificate shows a `form-warning` chip explaining the reverse-proxy header requirement before letting the admin enable it. New `.form-warning` CSS using the existing `--warn` token.
+- Footer now shows `© YYYY · {siteTitle}` (threaded via `/api/config` → new `siteTitle` state in `app.js`).
+
+**Release plumbing:**
+- `APP_VERSION` bumped `0.1.0` → `1.0.0`. About modal / `/api/health` will now correctly self-report.
+- New `CHANGELOG.md` distilled from sprints 1–7, leading with the 1.0 entry.
+- New `SECURITY.md` — reporting contact, threat model, residual risks (DNS rebinding, public `/api/state`, client-cert header trust, first-run takeover).
+- README gained a "Security" section pulling the three most operationally-relevant residual risks forward.
+
+**Tests:**
+- New `tests/AggregatorTest.php` (29 checks) + `tests/fixtures/FakeProvider.php`. Covers: empty cache → regen, fresh cache reuse, provider exception → instanceErrors + error items, missing-from-upstream → synthesized unknown placeholder, displayOrder ranking, threshold-override severity recompute via Evaluator, and three private-method paths exercised via Reflection — `applyUserTransforms` returns null on (a) any thresholdOverrides present, (b) newly-visible item not in cache, and (c) succeeds + filters when cache covers all visible items.
+- `App\Providers\Registry::register()` added so tests can plug in a deterministic fake provider without monkey-patching.
+
+**Verification:**
+- `php tests/run.php` → **204/204** pass (was 175; +29 AggregatorTest).
+- `npm run test:e2e` → **22/22** pass in 47 s.
+- `bash tests/inline-style-check.sh` + `bash tests/css-class-check.sh` clean.
+- `node --check` clean for all touched JS modules.
+
+**Deliberately deferred (NOT a 1.0 blocker per user direction):**
+- Unauthenticated first-run takeover. Acceptable: a blank-state instance has nothing to leak, and an admin who lost the race can clear `auth.passwordHash` to re-onboard. Documented in `SECURITY.md`.
+
+---

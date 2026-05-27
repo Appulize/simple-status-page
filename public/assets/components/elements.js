@@ -147,12 +147,31 @@ export function EventsEl({ el }) {
   `;
 }
 
+// Provider-supplied URLs are rendered as clickable links. Only http(s) and
+// mailto schemes are allowed; anything else (javascript:, data:, vbscript:)
+// falls back to "#" so a malicious upstream can't inject script execution
+// via the href attribute.
+function safeHref(raw) {
+  if (typeof raw !== 'string' || raw === '') return '#';
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:')) {
+    return trimmed;
+  }
+  return '#';
+}
+
 export function LinkEl({ el }) {
+  const href = safeHref(el.href);
+  const external = !!el.external && (href.startsWith('http://') || href.startsWith('https://'));
   return html`
     <div class="links">
-      <a class="link-btn" href=${el.href} onClick=${(e) => e.preventDefault()}>
+      <a class="link-btn" href=${href}
+         target=${external ? '_blank' : undefined}
+         rel=${external ? 'noopener noreferrer' : undefined}>
         ${el.label}
-        ${el.external && html`<${Icon} name="external" />`}
+        ${external && html`<${Icon} name="external" />`}
       </a>
     </div>
   `;

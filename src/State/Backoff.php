@@ -100,6 +100,14 @@ class Backoff
         if ($json === false) {
             return;
         }
-        @file_put_contents($this->path, $json);
+        // Atomic: write to temp + rename. Two concurrent workers can each
+        // race the rename, but neither can leave a torn JSON behind.
+        $tmp = $this->path . '.tmp.' . bin2hex(random_bytes(4));
+        if (@file_put_contents($tmp, $json) === false) {
+            return;
+        }
+        if (!@rename($tmp, $this->path)) {
+            @unlink($tmp);
+        }
     }
 }

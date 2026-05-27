@@ -704,6 +704,18 @@ a { color: inherit; text-decoration: none; }
 .modal-note { margin-top: 18px; margin-bottom: 0; font-size: 12px; color: var(--ink-4); }
 .modal-note-sm { margin-top: 18px; margin-bottom: 0; font-size: 12px; }
 .form-error { margin: 0 0 12px; font-size: 13px; color: var(--down-ink); }
+.form-warning {
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-1);
+  background: color-mix(in oklch, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--warn) 35%, transparent);
+  border-radius: var(--r-2);
+}
+.form-warning code { font-size: 11px; padding: 0 4px; border-radius: 3px; background: color-mix(in oklch, var(--warn) 18%, transparent); }
+.form-warning strong { color: var(--warn-ink, var(--ink-1)); }
 .modal-actions { display: flex; gap: 8px; }
 
 /* Auth section heading */

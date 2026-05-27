@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '1.0.0';
 
 // ── Data root ────────────────────────────────────────────────────────────────
 // All runtime state lives under SSP_DATA_ROOT/{config,cache}. Defaults to the

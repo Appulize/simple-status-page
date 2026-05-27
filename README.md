@@ -103,6 +103,14 @@ mv config/settings.json.tmp config/settings.json
 
 This loses no settings other than the password. Sessions are invalidated by the missing hash on next login attempt.
 
+## Security
+
+See `SECURITY.md` for the threat model and reporting process. A few points worth pulling forward:
+
+- `/api/state` is intentionally **public** (that's the point of a status page). Do not surface anything on it you wouldn't put on a public wall poster.
+- The client-certificate auth method trusts a request header. It requires a reverse-proxy directive (`header_up X-Client-Cert-Subject {tls_client_subject}` in Caddy — see `Caddyfile.example`) to prevent header spoofing.
+- First-run onboarding is unauthenticated by design: the first visitor sets the admin password. Block external access until you've completed setup, or do it from `localhost`.
+
 ## Browser support
 
 Requires native ES module + import map support: Chrome/Edge 89+, Safari 16.4+, Firefox 108+. No bundler, no transpile step.

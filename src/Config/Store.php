@@ -96,6 +96,24 @@ class Store
         return $m === false ? 0 : $m;
     }
 
+    /**
+     * Content-hash version token for optimistic concurrency (ETag / If-Match).
+     * Independent of wall-clock mtime so two saves within the same second still
+     * produce distinct versions.
+     */
+    public static function version(): string
+    {
+        $path = self::path();
+        if (!is_file($path)) {
+            return '0';
+        }
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            return '0';
+        }
+        return substr(hash('sha256', $raw), 0, 16);
+    }
+
     public static function isFirstRun(): bool
     {
         if (!is_file(self::path())) {

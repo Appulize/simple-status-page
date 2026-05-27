@@ -21,11 +21,14 @@ if ($req->method() !== 'POST') {
 $cfg = Store::read();
 Authenticator::requireAuth($req, $cfg);
 
-// CSRF: session-scoped token required for state-changing requests.
-Session::start();
-$csrf = $req->header('X-CSRF-Token') ?? '';
-if (!Csrf::validate($csrf)) {
-    Json::error('Invalid CSRF token.', 403);
+// CSRF required for session/form auth; bearer-token auth is CSRF-exempt
+// (token presence implies the caller is not a browser session).
+if ($req->bearerToken() === null) {
+    Session::start();
+    $csrf = $req->header('X-CSRF-Token') ?? '';
+    if (!Csrf::validate($csrf)) {
+        Json::error('Invalid CSRF token.', 403);
+    }
 }
 
 // Whitelist + validate. Anything outside this list is rejected.
