@@ -292,3 +292,33 @@ Goal was Sprint 6 (Settings/Catalog APIs), but the user opened the page and noth
 **Carry-over to Sprint 7:** see `AGENTS/STEP7-PLAN.md`.
 
 ---
+
+## 2026-05-27 — E2E browser test suite (Playwright)
+
+**Deliverables shipped:**
+
+- `tests/e2e/` — Playwright suite running headless Chromium against an isolated PHP server (`php -S 127.0.0.1:8123 -t public public/router.php`) whose data root is redirected to `tests/e2e/.tmp/data/` via a new `SSP_DATA_ROOT` env hook. Tests never touch the dev `config/settings.json` or `cache/`.
+- `SSP_DATA_ROOT` constant in `src/bootstrap.php` (env-driven, defaults to project root). 8 callsites updated: `Store`, `Cache`, `Aggregator`, `Backoff`, `Throttle`, `bootstrap` session path, `api/health.php`, `public/index.php`. All 151 PHP unit tests still pass.
+- Helpers: `helpers/env.ts` (data-root reset + base URL), `helpers/seed.ts` (onboard/seedAuthedWithItems/seedPasswordOnly + cache seeder), `helpers/ui.ts` (openSettings/switchTab/closeSettings/loginThroughUI/pause), `helpers/shot.ts` (numbered screenshots per test).
+- 19 specs covering every UI flow built so far:
+  - 01 onboarding · 02 login/logout · 03 auth-gated tabs · 04 dashboard render (mixed severities)
+  - 05 simple/detailed · 06 theme toggle · 07 viewer appearance prefs · 08 admin appearance defaults
+  - 09 catalog visibility/rename · 10 remove instance · 11 wizard 502 path · 12 display-order drag
+  - 13 auth lockout guard · 14 change password · 15 bearer token rotate · 16 concurrent edit 409
+  - 17 about modal · 18 stale banner · 19 (optional) live Beszel discovery, skipped when `.env` lacks creds
+- `tests/e2e/.env.example` (committed) + `tests/e2e/.env` (gitignored). dotenv-loaded.
+- `package.json` scripts: `test:e2e`, `test:e2e:headed`, `test:e2e:ui`, `test:e2e:report`.
+- `.gitignore`: `test-results/`, `playwright-report/`, `tests/e2e/.env`, `tests/e2e/.tmp/`.
+- `README.md` — "Testing" section.
+- `AGENTS.md` — new §9 ("Tests are part of done") mandating test review/update on non-trivial changes; existing self-improvement loop renumbered to §10.
+
+**Notable gotchas resolved during the sprint:**
+- Cookie isolation: `request` worker-fixture has its own jar; helpers must take `page.request` to share the browser context's cookies with `page.goto`.
+- HTML5 drag-and-drop: Playwright's `dragTo()` doesn't reliably trigger the app's React handlers — used explicit `DragEvent` dispatch via `page.evaluate()` with a shared `DataTransfer`.
+- Race between settings POST and the follow-up /api/state GET: dropped the second `waitForResponse` and let `expect().toHaveCount/toHaveText` auto-retry.
+- Conflict-modal flow: handleClose unmounts the drawer before React commits the conflict state. Use tab-switch (which keeps the drawer mounted) to flush instead.
+- `/api/config` has `Cache-Control: public, max-age=30`, so an admin appearance change isn't visible across an in-tab reload. Spec 06 tests the per-viewer (localStorage) path for reload persistence; spec 08 verifies the admin/server path without a reload.
+
+**Verification:** `npm run test:e2e` → 19/19 pass in 41 s on the author's machine (Beszel creds in `.env`); 18/19 with skip on a fresh checkout. `php tests/run.php` → 151/151 still pass. HTML report at `playwright-report/`, numbered screenshots at `test-results/<test-name>/NN-label.png`.
+
+---

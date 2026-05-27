@@ -33,7 +33,7 @@ export default defineConfig({
     cwd: REPO_ROOT,
     url: `${BASE_URL}/api/health`,
     reuseExistingServer: false,
-    stdout: 'pipe',
+    stdout: 'ignore',
     stderr: 'pipe',
     timeout: 30_000,
     env: {

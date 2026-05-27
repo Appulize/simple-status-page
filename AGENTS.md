@@ -100,7 +100,18 @@ The task is trivial and reversible (typo, rename a local variable, add a log lin
 The ambiguity can be resolved by reading the code or running a command.
 The user has already answered the question once in this session.
 
-# 9. Self-improvement loop
+# 9. Tests are part of "done"
+
+For any non-trivial change — new feature, behavior change, bug fix, UI flow, schema change — review the test suites and add or update tests to cover it. PHP units in `tests/*Test.php`; browser flows in `tests/e2e/specs/`. Run both before declaring done:
+
+```
+php tests/run.php
+npm run test:e2e
+```
+
+A change that regresses an existing test is a bug, not the test's problem. When the UI grows a new flow or the schema gains a field, the e2e suite should grow too — don't ship dark corners.
+
+# 10. Self-improvement loop
 
 This file is living. Keep it short by keeping it honest.
 
