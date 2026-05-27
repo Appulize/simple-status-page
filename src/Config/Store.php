@@ -140,7 +140,7 @@ class Store
     private static function path(): string
     {
         if (self::$path === '') {
-            self::$path = dirname(__DIR__, 2) . '/config/settings.json';
+            self::$path = SSP_DATA_ROOT . '/config/settings.json';
         }
         return self::$path;
     }

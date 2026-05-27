@@ -10,7 +10,7 @@ header('Cache-Control: no-store');
 
 // Process-start sentinel: a file whose mtime is the first time the app
 // answered /api/health after deploy. FPM-friendly (no process-wide globals).
-$sentinel = dirname(__DIR__, 2) . '/cache/started_at';
+$sentinel = SSP_DATA_ROOT . '/cache/started_at';
 $startedAt = @filemtime($sentinel);
 if ($startedAt === false) {
     @touch($sentinel);

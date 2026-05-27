@@ -21,7 +21,7 @@ class Aggregator
         $this->cache     = $cache     ?? new Cache();
         $this->backoff   = $backoff   ?? new Backoff();
         $this->evaluator = $evaluator ?? new Evaluator();
-        $this->lockPath  = $lockPath  ?? dirname(__DIR__, 2) . '/cache/state.json.lock';
+        $this->lockPath  = $lockPath  ?? SSP_DATA_ROOT . '/cache/state.json.lock';
     }
 
     /**

@@ -60,6 +60,33 @@ opcache.max_accelerated_files=1000
 
 Requires import map support: Chrome/Edge 89+, Safari 16.4+, Firefox 108+.
 
+## Testing
+
+Unit tests (PHP, no browser):
+
+```sh
+php tests/run.php
+```
+
+Browser tests (Playwright, headless Chromium) run the real app against a temp
+data directory — your `config/settings.json` is never touched:
+
+```sh
+# one-time
+npm install
+npx playwright install chromium
+cp tests/e2e/.env.example tests/e2e/.env   # then edit values
+
+npm run test:e2e             # headless
+npm run test:e2e:headed      # see the browser
+npm run test:e2e:ui          # Playwright UI mode (best for debugging)
+npm run test:e2e:report      # open the HTML report from the last run
+```
+
+Numbered screenshots land in `test-results/<test-name>/NN-label.png`. The HTML
+report (`playwright-report/`) embeds the same screenshots plus traces and
+videos. Both directories are gitignored.
+
 ## License
 
 MIT — see `LICENSE`.

@@ -19,3 +19,9 @@ cache/throttle/
 .idea/
 .vscode/
 *.code-workspace
+
+# E2E tests (Playwright)
+test-results/
+playwright-report/
+tests/e2e/.env
+tests/e2e/.tmp/

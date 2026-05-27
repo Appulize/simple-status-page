@@ -11,7 +11,7 @@ class Cache
 
     public function __construct(?string $path = null)
     {
-        $this->path = $path ?? dirname(__DIR__, 2) . '/cache/state.json';
+        $this->path = $path ?? SSP_DATA_ROOT . '/cache/state.json';
     }
 
     public function path(): string

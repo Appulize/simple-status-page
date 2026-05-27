@@ -3,6 +3,15 @@ declare(strict_types=1);
 
 const APP_VERSION = '0.1.0';
 
+// ── Data root ────────────────────────────────────────────────────────────────
+// All runtime state lives under SSP_DATA_ROOT/{config,cache}. Defaults to the
+// project root; tests set SSP_DATA_ROOT to a temp directory for isolation.
+$dataRoot = getenv('SSP_DATA_ROOT');
+if (!is_string($dataRoot) || $dataRoot === '') {
+    $dataRoot = dirname(__DIR__);
+}
+define('SSP_DATA_ROOT', $dataRoot);
+
 // ── PSR-4 autoloader (App\ → src/) ──────────────────────────────────────────
 spl_autoload_register(function (string $class): void {
     $prefix = 'App\\';
@@ -39,7 +48,7 @@ set_exception_handler(function (\Throwable $e): void {
 });
 
 // ── Session configuration (path + flags; do NOT start session here) ──────────
-$sessionPath = dirname(__DIR__) . '/cache/sessions';
+$sessionPath = SSP_DATA_ROOT . '/cache/sessions';
 if (!is_dir($sessionPath)) {
     mkdir($sessionPath, 0700, true);
 }

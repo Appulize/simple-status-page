@@ -12,7 +12,7 @@ header('Cache-Control: no-store');
 
 // Read site title from config (falls back gracefully before first-run setup)
 $siteTitle = 'Status';
-$settingsFile = dirname(__DIR__) . '/config/settings.json';
+$settingsFile = SSP_DATA_ROOT . '/config/settings.json';
 if (is_file($settingsFile)) {
     try {
         $cfg = json_decode((string) file_get_contents($settingsFile), true, 8, JSON_THROW_ON_ERROR);

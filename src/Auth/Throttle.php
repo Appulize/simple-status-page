@@ -10,7 +10,7 @@ class Throttle
 
     private static function dir(): string
     {
-        return dirname(__DIR__, 2) . '/cache/throttle';
+        return SSP_DATA_ROOT . '/cache/throttle';
     }
 
     private static function file(string $ip): string
