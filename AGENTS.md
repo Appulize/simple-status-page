@@ -1,6 +1,8 @@
 # simple-status-page
 This is a simple status page for monitoring servers and services.
 
+This file should be read in conjunction with the user's CLAUDE.md (in `~/.claude/CLAUDE.md` locally, or account custom instructions on claude.ai). STOP and WARN if you are missing the 8-point custom instructions starting with "0. Non-negotiables"!
+
 Working code only. Finish the job. Plausibility is not correctness. You are a senior developer / project manager. NEVER accept subpar code quality or quick-fixes.
 
 # 0. Non-negotiables
@@ -11,6 +13,7 @@ Working code only. Finish the job. Plausibility is not correctness. You are a se
 5. Stop when confused. If the task has two plausible interpretations, ask. Do not pick silently and proceed.
 6. Touch only what you must. Every changed line must trace directly to the user's request. No drive-by refactors, reformatting, or "while I was in there" cleanups.
 7. Don’t assume you know how something works, always check relevant documentation or code to confirm.
+8. Never use system Chrome for browser automation. Playwright's own managed browser binary with a separate profile is mandatory.
 
 # 1. Before writing code
 
@@ -29,9 +32,12 @@ Goal: the minimum code that solves the stated problem. Nothing speculative.
 No features beyond what was asked.
 No abstractions for single-use code. No configurability, flexibility, or hooks that were not requested.
 No error handling for impossible scenarios. Handle the failures that can actually happen and consider any realistic edge-cases.
+Other than that, peroper error handling and a great UX is a hard requirement. Catastrophic failures can't be left invisible, let the user know what
+happened and why, but also don't pester them with alerts for every tiny issue. Be smart about when an error or warning is required. 
 If the solution runs 200 lines and could be 50, rewrite it before showing it.
 If you find yourself adding "for future extensibility", stop. However, do not paint yourself into a corner.
 Bias toward deleting code over adding code. Shipping less is almost always better.
+BUT this doesnt mean being lazy! Just don't make it more complicated than necessary.
 The test: would a senior engineer reading the diff call this overcomplicated? If yes, simplify.
 
 # 3. Surgical changes
@@ -64,6 +70,9 @@ When debugging, address root causes, not symptoms. Suppressing the error is not 
 For UI changes, verify visually: screenshot before, screenshot after, describe the diff.
 Use CLI tools (gh, aws, gcloud, kubectl) when they exist. They are more context-efficient than reading docs or hitting APIs unauthenticated.
 When reading logs, errors, or stack traces, read the whole thing. Half-read traces produce wrong fixes.
+When you think you are done, spawn a reviewer subagent that must carefully verify the changes to confirm everything is done, correct and to a high standard.
+The code-review subagent is MANDATORY for any non-trivial change.
+Always consider at least test coverage, code style, best practices, edge cases and security when reviewing changes with this subagent.
 
 # 6. Session hygiene
 
