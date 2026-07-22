@@ -58,7 +58,7 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:80 \
   -v simple-status-page-data:/data \
-  appulize/simple-status-page:latest
+  maciekish/simple-status-page:latest
 ```
 
 Then open `http://localhost:8080` and complete onboarding. For local builds,

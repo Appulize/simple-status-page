@@ -4,7 +4,7 @@ services:
       context: .
       args:
         VERSION: local
-    image: appulize/simple-status-page:local
+    image: maciekish/simple-status-page:local
     ports:
       - "8080:80"
     volumes:

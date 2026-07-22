@@ -40,7 +40,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: appulize/simple-status-page
+          images: maciekish/simple-status-page
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
