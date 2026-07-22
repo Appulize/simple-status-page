@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-07-22 — Production container packaging
+
+**Deliverables:**
+- Multi-stage production image with pinned frontend dependencies, Apache/PHP 8.4, required PHP extensions, clean-URL routing, health check, and persistent `/data` volume.
+- Secure runtime-directory initialization and a local Compose definition.
+- GitHub Actions release workflow that validates stable semver tags and publishes multi-architecture images to `appulize/simple-status-page`.
+- Docker deployment and release-tag documentation.
+
+**Verification:** image builds successfully; 204 PHP tests pass under the target PHP 8.4 runtime; 21 Playwright tests pass and the credential-gated live-provider test skips; Compose and workflow YAML parse; container health, clean URL routing, security headers, persistent-directory ownership/modes, and the visible onboarding overlay were confirmed.
+
+---
+
 ## 2026-05-26 — Step 1: Repo scaffold
 
 **Deliverables shipped:**

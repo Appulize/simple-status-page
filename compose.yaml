@@ -1,0 +1,15 @@
+services:
+  status-page:
+    build:
+      context: .
+      args:
+        VERSION: local
+    image: appulize/simple-status-page:local
+    ports:
+      - "8080:80"
+    volumes:
+      - status-page-data:/data
+    restart: unless-stopped
+
+volumes:
+  status-page-data:

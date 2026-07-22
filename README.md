@@ -47,6 +47,28 @@ Open the site in a browser. On first request you'll see an onboarding overlay
 asking for an admin password (min 8 chars). Set it, then click the cog icon to
 add your first provider via the discovery wizard.
 
+### Docker
+
+The container stores all mutable state under `/data`. Use a named volume so
+settings, sessions, and cached provider state survive upgrades:
+
+```sh
+docker run -d \
+  --name simple-status-page \
+  --restart unless-stopped \
+  -p 8080:80 \
+  -v simple-status-page-data:/data \
+  appulize/simple-status-page:latest
+```
+
+Then open `http://localhost:8080` and complete onboarding. For local builds,
+run `docker compose up --build -d` (or `docker-compose up --build -d` with the
+legacy Compose client).
+
+Published images support both `linux/amd64` and `linux/arm64`. Stable semver
+tags are available as the exact version (`1.2.3`), minor line (`1.2`), and
+`latest`.
+
 `config/settings.json` is created automatically and ignored by git. The password
 is bcrypt-hashed inside that file; there is no separate user database.
 

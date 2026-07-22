@@ -3,6 +3,13 @@
 All notable changes to simple-status-page are recorded here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.1] — 2026-07-22
+
+### Added
+- Production Docker image with Apache, PHP 8.4, OPcache, health checks, and a persistent `/data` volume.
+- Local Compose deployment.
+- Multi-architecture Docker Hub releases from stable semver Git tags.
+
 ## [1.0.0] — 2026-05-27
 
 First production release.
